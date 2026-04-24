@@ -9,6 +9,7 @@ export async function GET(req: NextRequest) {
     await connectDB();
 
     const { searchParams } = new URL(req.url);
+    const userId = searchParams.get("userId");
     const q = (searchParams.get("q") || "").trim();
     const location = (searchParams.get("location") || "").trim();
     const minScoreRaw = searchParams.get("minScore");
@@ -16,6 +17,15 @@ export async function GET(req: NextRequest) {
     const skip = Math.max(Number(searchParams.get("skip") || 0), 0);
 
     const filter: Record<string, unknown> = {};
+    
+    // If userId provided, only show their targeted jobs
+    if (userId) {
+      filter.userId = userId;
+    } else {
+      // If no userId, only show global discovery jobs
+      filter.userId = { $exists: false };
+    }
+
     if (q) {
       filter.$or = [
         { title: { $regex: q, $options: "i" } },
@@ -33,14 +43,39 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    const [items, total] = await Promise.all([
-      Job.find(filter)
-        .sort({ relevanceScore: -1, postedAt: -1, createdAt: -1 })
-        .skip(skip)
-        .limit(limit)
-        .lean(),
-      Job.countDocuments(filter),
-    ]);
+    let items = await Job.find(filter)
+      .sort({ relevanceScore: -1, postedAt: -1, createdAt: -1 })
+      .skip(skip)
+      .limit(limit)
+      .lean();
+
+    const total = await Job.countDocuments(filter);
+
+    // Auto-seed for demo if empty for a specific user
+    if (userId && items.length === 0) {
+        const sampleJobs = [
+            {
+                userId,
+                title: 'Senior Frontend Engineer',
+                company: 'Vercel',
+                email: 'careers@vercel.com',
+                description: 'We are looking for a React expert to help us build the future of the web. Experience with Next.js and Tailwind is a must.',
+                location: 'Remote',
+                status: 'open'
+            },
+            {
+                userId,
+                title: 'Full Stack Developer',
+                company: 'Supabase',
+                email: 'hiring@supabase.io',
+                description: 'Join the team building the open source Firebase alternative. Work with Postgres, Go, and TypeScript.',
+                location: 'Singapore / Remote',
+                status: 'open'
+            }
+        ];
+        await Job.insertMany(sampleJobs);
+        items = await Job.find({ userId }).lean();
+    }
 
     return NextResponse.json({
       success: true,
@@ -51,4 +86,15 @@ export async function GET(req: NextRequest) {
     const message = err instanceof Error ? err.message : "Unknown error";
     return NextResponse.json({ success: false, error: message }, { status: 500 });
   }
+}
+
+export async function POST(req: NextRequest) {
+    try {
+        await connectDB();
+        const data = await req.json();
+        const job = await Job.create(data);
+        return NextResponse.json({ success: true, job });
+    } catch (error: any) {
+        return NextResponse.json({ success: false, error: error.message }, { status: 400 });
+    }
 }
