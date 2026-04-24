@@ -37,7 +37,10 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     const storedUser = localStorage.getItem("jobify_user")
     if (storedUser) {
       try {
-        setUser(JSON.parse(storedUser))
+        const parsed = JSON.parse(storedUser);
+        // Self-heal: Ensure ID is always present even if old storage is missing it
+        if (!parsed.id) parsed.id = DEFAULT_USER.id;
+        setUser(parsed)
       } catch (e) {
         console.error("Failed to parse stored user", e)
       }

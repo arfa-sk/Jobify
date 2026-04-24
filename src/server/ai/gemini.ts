@@ -89,14 +89,25 @@ export async function generateStructuredResponse<T>(
     const text = response.text();
 
     try {
-        return JSON.parse(text) as T;
+        // Strip any leading/trailing whitespace or markdown fences
+        const cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        return JSON.parse(cleanedText) as T;
     } catch (err) {
-        // Fallback: try to extract JSON if it's wrapped in markdown fences
-        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-        const match = text.match(jsonRegex);
-        if (match && match[1]) {
-            return JSON.parse(match[1].trim()) as T;
+        console.warn("[Gemini] Direct parse failed, attempting regex extract on:", text.substring(0, 50) + "...");
+        
+        // Try to find the first '{' and last '}' to extract a single JSON object
+        const firstBrace = text.indexOf('{');
+        const lastBrace = text.lastIndexOf('}');
+        
+        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
+            try {
+                const extracted = text.substring(firstBrace, lastBrace + 1);
+                return JSON.parse(extracted) as T;
+            } catch (innerErr) {
+                console.error("[Gemini] Deep regex extract failed.");
+            }
         }
-        throw new Error('Failed to parse AI response as JSON');
+        
+        throw new Error('Failed to parse AI response as JSON. Raw output: ' + text.substring(0, 100));
     }
 }

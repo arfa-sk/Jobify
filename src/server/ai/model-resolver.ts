@@ -46,17 +46,18 @@ export async function resolveBestModel(preference: 'fast' | 'quality' = 'fast'):
     // Scoring logic
     const scored = models.map(name => {
         let score = 0;
-        if (name.includes('1.5')) score += 500; // Major boost for 1.5 stability
-        if (name.includes('2.0')) score += 10;  // Minimal score for 2.0
+        if (name.includes('1.5')) score += 500;
+        if (name.includes('2.0')) score += 10;
         
         if (preference === 'fast') {
             if (name.includes('flash')) score += 50;
-            if (name.includes('8b')) score += 10;
         } else {
             if (name.includes('pro')) score += 50;
         }
         
-        if (name.includes('preview') || name.includes('exp')) score -= 100; // Heavy penalty for experimental models
+        if (name.includes('preview') || name.includes('exp')) score -= 100;
+        if (name.includes('robotics')) score -= 1000; // Hard penalty for specialized models
+        if (name.includes('tts') || name.includes('image')) score -= 500; // Penalty for multi-modal specialized models
         
         return { name, score };
     }).sort((a, b) => b.score - a.score);
