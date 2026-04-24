@@ -23,10 +23,6 @@ export async function listAvailableModels(): Promise<string[]> {
         );
         
         if (!response.ok) {
-            if (response.status === 403) {
-                console.warn('[Gemini] API Key blocked or Forbidden. Signaling for fallback.');
-                return []; // Return empty so fallback logic triggers
-            }
             throw new Error(`Failed to list models: ${response.statusText}`);
         }
 
@@ -40,7 +36,8 @@ export async function listAvailableModels(): Promise<string[]> {
         return models;
     } catch (error) {
         console.error('Error fetching Gemini models:', error);
-        return []; // Return empty on any error to force fallback switch
+        // PR #3 Stable Fallbacks
+        return ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']; 
     }
 }
 
@@ -53,7 +50,6 @@ export async function resolveModelQueue(preference: 'fast' | 'quality' = 'fast')
         // Prefer newer versions
         if (name.includes('1.5')) score += 500;
         if (name.includes('2.0')) score += 600;
-        if (name.includes('2.5')) score += 700;
         
         if (preference === 'fast') {
             if (name.includes('flash')) score += 100;
@@ -70,7 +66,6 @@ export async function resolveModelQueue(preference: 'fast' | 'quality' = 'fast')
         return { name, score };
     }).sort((a, b) => b.score - a.score);
 
-    console.log(`[Gemini Resolver] Created queue for ${preference}:`, scored.map(s => `${s.name} (${s.score})`));
     return scored.map(s => s.name);
 }
 

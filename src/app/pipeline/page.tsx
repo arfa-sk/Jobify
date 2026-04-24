@@ -34,6 +34,8 @@ import { useRouter } from "next/navigation"
 import Link from "next/link"
 import { cn } from "@/lib/utils"
 
+import ApplyModal from "@/components/jobs/ApplyModal"
+
 export default function JobDiscoveryArtboard() {
   const router = useRouter()
   const { user } = useUser()
@@ -46,10 +48,8 @@ export default function JobDiscoveryArtboard() {
   const [searchQuery, setSearchQuery] = useState("")
   
   // Apply Modal State
-  const [selectedJob, setSelectedJob] = useState<any>(null)
-  const [isApplying, setIsApplying] = useState(false)
-  const [applyStep, setApplyStep] = useState<'options' | 'generating' | 'success'>('options')
-  const [applyStatus, setApplyStatus] = useState("")
+  const [selectedJobForApply, setSelectedJobForApply] = useState<any>(null)
+  const [isApplyModalOpen, setIsApplyModalOpen] = useState(false)
 
   useEffect(() => {
     fetchData()
@@ -93,46 +93,14 @@ export default function JobDiscoveryArtboard() {
     }
   }
 
-  const handleApply = async (type: 'master' | 'tailor') => {
-    setIsApplying(true)
-    setApplyStep('generating')
-    setApplyStatus(type === 'master' ? "Recording application..." : "Architecting Tailored Suite...")
-    
-    const primaryCv = cvs.find(c => c.isDefault) || cvs[0]
-    
-    try {
-      if (type === 'master') {
-        await fetch('/api/applications', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id || '000000000000000000000001',
-            jobId: selectedJob._id,
-            cvId: primaryCv._id,
-            status: 'APPLIED'
-          })
-        })
-      } else {
-        const res = await fetch('/api/cv/tailor-suite', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            userId: user.id || '000000000000000000000001',
-            cvId: primaryCv._id,
-            jobId: selectedJob._id,
-            jobDescription: selectedJob.description,
-            targetRole: selectedJob.title
-          })
-        })
-        const data = await res.json()
-        if (!data.success) throw new Error(data.error)
-      }
-      
-      setApplyStep('success')
-    } catch (err: any) {
-      setApplyStatus(`Error: ${err.message}`)
-      setTimeout(() => setIsApplying(false), 3000)
-    }
+  const handleApplyClick = (job: any) => {
+    setSelectedJobForApply({
+        id: job._id,
+        title: job.title,
+        company: job.company,
+        email: job.email || 'careers@' + job.company.toLowerCase().replace(/\s+/g, '') + '.com' // Fallback for demo
+    })
+    setIsApplyModalOpen(true)
   }
 
   return (
@@ -140,78 +108,15 @@ export default function JobDiscoveryArtboard() {
       {/* Cinematic Background */}
       <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 pointer-events-none" style={{ backgroundImage: `url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Fractal%20Glass%20-%204.jpg-8QPt1A02QgjJIeTqwEYV5thwZXXEGT.jpeg')` }} />
       
-      {/* Apply Modal Overlay */}
-      {selectedJob && (
-        <div className="fixed inset-0 z-[100] bg-black/80 backdrop-blur-2xl flex items-center justify-center p-6 animate-in fade-in duration-300">
-           <Card className="bg-white/5 border-white/10 rounded-[40px] p-12 max-w-2xl w-full relative overflow-hidden space-y-10">
-              <div className="absolute top-0 right-0 w-48 h-48 bg-amber-500/10 blur-[80px] pointer-events-none" />
-              
-              <button onClick={() => setSelectedJob(null)} className="absolute top-8 right-8 text-white/20 hover:text-white transition-colors">
-                 <X size={24} />
-              </button>
-
-              {applyStep === 'options' && (
-                <>
-                  <div className="space-y-4">
-                     <div className="flex items-center gap-3">
-                        <div className="p-2 bg-amber-500/20 rounded-lg"><Target className="text-amber-500" size={20} /></div>
-                        <h3 className="text-3xl font-black tracking-tighter uppercase italic">Application Protocol</h3>
-                     </div>
-                     <div className="p-6 bg-white/5 border border-white/10 rounded-2xl">
-                        <h4 className="text-xl font-bold text-white mb-1 leading-none">{selectedJob.title}</h4>
-                        <p className="text-[10px] font-black text-amber-500 uppercase tracking-widest">{selectedJob.company} • {selectedJob.location}</p>
-                     </div>
-                  </div>
-
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                     <Card onClick={() => handleApply('master')} className="bg-white/5 border-white/10 p-8 rounded-3xl hover:bg-white/10 hover:border-white/20 transition-all cursor-pointer group text-center space-y-4">
-                        <div className="w-12 h-12 bg-white/10 rounded-xl flex items-center justify-center mx-auto group-hover:bg-white/20 transition-all"><FileText size={24} /></div>
-                        <div>
-                           <h5 className="font-bold text-white uppercase tracking-tight">Direct Apply</h5>
-                           <p className="text-[9px] text-white/40 font-black uppercase tracking-widest mt-1 italic">Use Master Profile</p>
-                        </div>
-                     </Card>
-                     <Card onClick={() => handleApply('tailor')} className="bg-amber-500/10 border-amber-500/20 p-8 rounded-3xl hover:bg-amber-500/20 hover:border-amber-500/40 transition-all cursor-pointer group text-center space-y-4">
-                        <div className="w-12 h-12 bg-amber-500/20 rounded-xl flex items-center justify-center mx-auto group-hover:bg-amber-500/30 transition-all"><Sparkles className="text-amber-500" size={24} /></div>
-                        <div>
-                           <h5 className="font-bold text-white uppercase tracking-tight">Xperia Suite</h5>
-                           <p className="text-[9px] text-amber-500 font-black uppercase tracking-widest mt-1 italic">Tailored CV + Outreach</p>
-                        </div>
-                     </Card>
-                  </div>
-                </>
-              )}
-
-              {applyStep === 'generating' && (
-                <div className="text-center py-12 space-y-8 animate-in zoom-in-95 duration-500">
-                   <div className="relative w-24 h-24 mx-auto">
-                      <Sparkles className="text-amber-500 h-24 w-24 animate-pulse" />
-                      <Loader2 className="absolute inset-0 text-amber-500 animate-spin opacity-50" size={96} />
-                   </div>
-                   <div className="space-y-2">
-                      <h4 className="text-2xl font-black uppercase tracking-tighter italic">Engine Active</h4>
-                      <p className="text-amber-500/60 text-[10px] font-black uppercase tracking-[0.3em]">{applyStatus}</p>
-                   </div>
-                </div>
-              )}
-
-              {applyStep === 'success' && (
-                <div className="text-center py-12 space-y-8 animate-in zoom-in-95 duration-500">
-                   <div className="w-24 h-24 bg-green-500/20 rounded-full flex items-center justify-center mx-auto border border-green-500/30 shadow-[0_0_40px_rgba(34,197,94,0.2)]">
-                      <CheckCircle2 className="text-green-500" size={48} />
-                   </div>
-                   <div className="space-y-2">
-                      <h4 className="text-3xl font-black uppercase tracking-tighter italic">Target Locked</h4>
-                      <p className="text-green-500/60 text-[10px] font-black uppercase tracking-[0.3em]">Application Synced to Ledger</p>
-                   </div>
-                   <div className="flex gap-4 pt-6">
-                      <Button onClick={() => router.push('/dashboard/applications')} className="flex-1 h-14 bg-white text-black font-black uppercase tracking-widest text-[10px] rounded-2xl">View Ledger</Button>
-                      <Button onClick={() => setSelectedJob(null)} variant="ghost" className="flex-1 h-14 bg-white/5 border border-white/10 font-black uppercase tracking-widest text-[10px] rounded-2xl">Continue Discovery</Button>
-                   </div>
-                </div>
-              )}
-           </Card>
-        </div>
+      {/* Apply Modal */}
+      {selectedJobForApply && (
+        <ApplyModal 
+            isOpen={isApplyModalOpen}
+            onClose={() => setIsApplyModalOpen(false)}
+            job={selectedJobForApply}
+            cvs={cvs}
+            userId={user.id || '000000000000000000000001'}
+        />
       )}
 
       {/* SIDEBAR */}
@@ -324,7 +229,10 @@ export default function JobDiscoveryArtboard() {
 
                           <div className="mt-auto flex gap-3 pt-6 border-t border-white/5">
                              <Button onClick={() => window.open(job.url, '_blank')} className="flex-1 h-12 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest">Details</Button>
-                             <Button onClick={() => setSelectedJob(job)} className="flex-[2] h-12 bg-white text-black hover:bg-amber-500 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl">Apply Suite</Button>
+                             <Button onClick={() => handleApplyClick(job)} className="flex-[2] h-12 bg-white text-black hover:bg-amber-500 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl flex items-center justify-center gap-2">
+                                <Sparkles size={16} />
+                                One-Click Apply
+                             </Button>
                           </div>
                           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
                        </Card>
