@@ -1,7 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { parseUploadedCv } from '@/server/services/cv-parser';
-import CV from '@/server/models/CV';
-import connectDB from '@/server/db';
+import CV from '@/models/CV';
+import connectToDatabase from '@/lib/mongodb';
 import { Types } from 'mongoose';
 import fs from 'fs';
 import path from 'path';
@@ -9,7 +9,7 @@ import os from 'os';
 
 export async function POST(req: NextRequest) {
     try {
-        await connectDB();
+        await connectToDatabase();
 
         const formData = await req.formData();
         const file = formData.get('cvFile') as File;
@@ -27,10 +27,16 @@ export async function POST(req: NextRequest) {
         try {
             const cvJson = await parseUploadedCv(tempPath, file.type, userId);
             
-            // Create a new base CV
+            // If there was already a default, unset it FIRST to avoid unique index violation
+            await CV.updateMany(
+                { userId: new Types.ObjectId(userId), isDefault: true },
+                { $set: { isDefault: false } }
+            );
+
+            // Create a new base CV as the new default
             const newCv = await CV.create({
                 userId: new Types.ObjectId(userId),
-                isDefault: true, // First one is default
+                isDefault: true,
                 category: 'General',
                 displayName: file.name.replace(/\.[^.]+$/, ''),
                 cvJson,
@@ -40,12 +46,6 @@ export async function POST(req: NextRequest) {
                 extractionTimestamp: new Date(),
                 originalPdf: buffer,
             });
-
-            // If there was already a default, unset it
-            await CV.updateMany(
-                { userId: new Types.ObjectId(userId), _id: { $ne: newCv._id }, isDefault: true },
-                { $set: { isDefault: false } }
-            );
 
             return NextResponse.json({ message: 'CV parsed successfully', cv: newCv });
         } finally {

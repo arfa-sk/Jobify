@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { getBranches, createBranch, setPrimary } from '@/server/services/cv-branch-service';
-import connectDB from '@/server/db';
+import connectToDatabase from '@/lib/mongodb';
 
 export async function GET(req: NextRequest) {
     try {
-        await connectDB();
+        await connectToDatabase();
         const { searchParams } = new URL(req.url);
         const userId = searchParams.get('userId') || '000000000000000000000001';
 
@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
 
 export async function POST(req: NextRequest) {
     try {
-        await connectDB();
+        await connectToDatabase();
         const body = await req.json();
         const { userId, sourceCvId, category, displayName } = body;
 
@@ -34,7 +34,7 @@ export async function POST(req: NextRequest) {
 
 export async function PATCH(req: NextRequest) {
     try {
-        await connectDB();
+        await connectToDatabase();
         const body = await req.json();
         const { userId, cvId, action } = body;
 

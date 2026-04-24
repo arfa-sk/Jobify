@@ -23,6 +23,7 @@ export interface ICvAnalysis extends Document {
     cvId?: Types.ObjectId; // Optional: Link to the CV branch analyzed
     
     status: 'pending' | 'completed' | 'failed';
+    cvHash?: string;
     overallScore: number;
     issueCount: number;
     categoryScores: Record<string, number>;
@@ -51,6 +52,10 @@ const CvAnalysisSchema = new Schema<ICvAnalysis>(
             type: String,
             enum: ['pending', 'completed', 'failed'],
             default: 'pending',
+        },
+        cvHash: {
+            type: String,
+            index: true,
         },
         overallScore: {
             type: Number,

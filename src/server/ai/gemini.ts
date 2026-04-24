@@ -37,7 +37,14 @@ export async function generateContentWithFile(
 ): Promise<GenerateContentResult> {
     const resolvedModel = modelName || await resolveBestModel('fast');
     console.log(`[Gemini] Using model: ${resolvedModel}`);
-    const model = genAI.getGenerativeModel({ model: resolvedModel });
+    const model = genAI.getGenerativeModel({ 
+        model: resolvedModel,
+        generationConfig: { 
+            temperature: 0,
+            topP: 0.1,
+            topK: 1
+        }
+    });
     const filePart = fileToGenerativePart(filePath, mimeType);
     const textPart: Part = { text: prompt };
     const parts: Part[] = [textPart, filePart];
@@ -69,7 +76,12 @@ export async function generateStructuredResponse<T>(
     console.log(`[Gemini] Using structured model: ${resolvedModel}`);
     const model = genAI.getGenerativeModel({ 
         model: resolvedModel,
-        generationConfig: { responseMimeType: 'application/json' }
+        generationConfig: { 
+            responseMimeType: 'application/json',
+            temperature: 0,
+            topP: 0.1,
+            topK: 1
+        }
     });
 
     const result = await model.generateContent(prompt);

@@ -1,95 +1,66 @@
 @import "tailwindcss";
 
 @theme {
-  --font-fraunces: "Fraunces", Georgia, serif;
+  /* Core Brand Colors (Amber-Gold) */
+  --color-primary: #f59e0b;
+  --color-primary-hover: #fbbf24;
+  --color-background: #0b0b14;
+  --color-surface: #141424;
+  --color-on-surface: #eeeef8;
+  --color-on-surface-muted: rgba(238, 238, 248, 0.6);
+  --color-border: rgba(255, 255, 255, 0.1);
+  --color-border-bright: rgba(255, 255, 255, 0.2);
+  
+  /* Single Font Strategy: Outfit */
   --font-outfit: "Outfit", system-ui, sans-serif;
-  --font-mono: "JetBrains Mono", monospace;
-
-  --color-bg-base: #f5f4f0;
-  --color-bg-surface: #ffffff;
-  --color-bg-elevated: #f9f8f6;
-  --color-border: #e4e2da;
-  --color-text-primary: #18181b;
-  --color-text-secondary: #52525b;
-  --color-text-muted: #a1a1aa;
-  --color-accent: #f57c00;
-  --color-accent-hover: #fb8c00;
-  --color-success: #16a34a;
-  --color-error: #dc2626;
-
-  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+  
+  /* Layout Spacing */
+  --spacing-lg: 24px;
+  --spacing-container: 32px;
+  --radius-xl: 1.5rem;
+  --radius-2xl: 2rem;
 }
 
 @layer base {
-  :root {
-    --bg-base: #f5f4f0;
-    --bg-surface: #ffffff;
-    --bg-elevated: #f9f8f6;
-    --border: #e4e2da;
-    --text-primary: #18181b;
-    --text-secondary: #52525b;
-    --text-muted: #a1a1aa;
-    --accent: #f57c00;
-    --accent-hover: #fb8c00;
-    --success: #16a34a;
-    --error: #dc2626;
-  }
-
-  .dark {
-    --bg-base: #0f0f17;
-    --bg-surface: #161621;
-    --bg-elevated: #1c1c2b;
-    --bg-raised: #242438;
-    --border: #2d2d3f;
-    --border-subtle: #242434;
-    --border-bright: #404060;
-    --text-primary: #eeeef8;
-    --text-secondary: #9090b4;
-    --text-muted: #585878;
-    --accent: #f57c00;
-    --accent-hover: #fb8c00;
-    --success: #2dd4a0;
-    --error: #f46464;
-  }
-
-  html {
+  html, body {
+    @apply font-outfit antialiased selection:bg-amber-500/30 selection:text-white;
+    background-color: var(--color-background);
+    color: var(--color-on-surface);
     scroll-behavior: smooth;
-    -webkit-font-smoothing: antialiased;
-  }
-
-  body {
-    background-color: var(--bg-base);
-    color: var(--text-primary);
-    font-family: var(--font-outfit);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: var(--font-fraunces);
+    @apply font-outfit font-bold tracking-tight;
   }
+}
+
+@utility glass {
+  background: rgba(255, 255, 255, 0.03);
+  backdrop-filter: blur(16px);
+  -webkit-backdrop-filter: blur(16px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @utility glass-card {
-  background-color: rgb(var(--bg-surface) / 0.8);
-  backdrop-filter: blur(12px);
-  border: 1px solid var(--border);
-  border-radius: 1rem;
-  box-shadow: var(--shadow-xl);
+  @apply glass rounded-[32px] p-8 shadow-2xl;
+}
+
+@utility ambient-stack {
+  box-shadow: 0px 20px 50px rgba(0, 0, 0, 0.2), 
+              0px 10px 15px rgba(0, 0, 0, 0.1), 
+              0px 0px 0px 1px rgba(255, 255, 255, 0.05);
 }
 
 @utility btn-premium {
-  padding: 0.75rem 1.5rem;
-  border-radius: 0.75rem;
-  font-weight: 600;
-  transition: all 0.3s;
-  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-  color: #fff;
-  box-shadow: var(--shadow-lg);
-  
-  &:hover {
-    transform: translateY(-0.125rem);
+  @apply bg-amber-500 hover:bg-amber-400 text-black font-black uppercase tracking-widest rounded-2xl h-12 px-6 transition-all active:scale-[0.98] shadow-lg shadow-amber-900/20;
+}
+
+@layer utilities {
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
   }
-  
-  &:active {
-    transform: translateY(0);
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
   }
 }

@@ -1,5 +1,5 @@
 import { Types } from 'mongoose';
-import CV, { ICV } from '../models/CV';
+import CV, { ICV } from '@/models/CV';
 
 export async function createBranch(
     userId: string,

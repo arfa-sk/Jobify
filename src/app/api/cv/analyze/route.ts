@@ -1,11 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { performFullAnalysis, getSectionAnalysis } from '@/server/services/analysis-service';
-import CV from '@/server/models/CV';
-import connectDB from '@/server/db';
+import { performFullAnalysis, getSectionAnalysis, generateCvHash } from '@/server/services/analysis-service';
+import CV from '@/models/CV';
+import CvAnalysis from '@/models/CvAnalysis';
+import connectToDatabase from '@/lib/mongodb';
 
 export async function POST(req: NextRequest) {
     try {
-        await connectDB();
+        await connectToDatabase();
         const body = await req.json();
         const { userId, cvId, type } = body;
 
@@ -15,6 +16,20 @@ export async function POST(req: NextRequest) {
         }
 
         if (type === 'full') {
+            const currentHash = generateCvHash(cv.cvJson);
+            
+            // Check for existing completed analysis with same hash
+            const existingAnalysis = await CvAnalysis.findOne({
+                cvId: cv._id,
+                cvHash: currentHash,
+                status: 'completed'
+            }).sort({ analysisDate: -1 });
+
+            if (existingAnalysis) {
+                console.log('Using cached analysis for hash:', currentHash);
+                return NextResponse.json({ analysis: existingAnalysis });
+            }
+
             const analysis = await performFullAnalysis(userId || 'default-user', cvId, cv.cvJson);
             return NextResponse.json({ analysis });
         }
