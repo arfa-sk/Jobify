@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 export default function Home() {
   return (
     <main style={{ padding: "2rem", fontFamily: "sans-serif" }}>
@@ -8,4 +9,10 @@ export default function Home() {
       </p>
     </main>
   );
+=======
+import { redirect } from "next/navigation";
+
+export default function Home() {
+  redirect("/login");
+>>>>>>> main
 }
