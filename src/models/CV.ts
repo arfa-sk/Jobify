@@ -21,6 +21,8 @@ export interface ICV extends Document {
     isTailored?: boolean;
     targetRole?: string | null;
     parentCvId?: Types.ObjectId | null;
+    isPublic: boolean;
+    shareSlug?: string;
     version: number;
     lastEditedAt?: Date;
     originalPdf?: Buffer | null;
@@ -48,6 +50,8 @@ const CVSchema = new Schema<ICV>(
         isTailored: { type: Boolean, default: false },
         targetRole: { type: String, default: null },
         parentCvId: { type: Schema.Types.ObjectId, default: null, index: true },
+        isPublic: { type: Boolean, default: false, index: true },
+        shareSlug: { type: String, default: null, unique: true, sparse: true },
         version: { type: Number, default: 0, min: 0 },
         lastEditedAt: { type: Date, default: null },
         originalPdf: { type: Buffer, default: null, select: false },

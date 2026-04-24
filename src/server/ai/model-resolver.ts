@@ -40,29 +40,37 @@ export async function listAvailableModels(): Promise<string[]> {
     }
 }
 
-export async function resolveBestModel(preference: 'fast' | 'quality' = 'fast'): Promise<string> {
+export async function resolveModelQueue(preference: 'fast' | 'quality' = 'fast'): Promise<string[]> {
     const models = await listAvailableModels();
     
-    // Scoring logic
     const scored = models.map(name => {
         let score = 0;
+        
+        // Prefer newer versions
         if (name.includes('1.5')) score += 500;
-        if (name.includes('2.0')) score += 10;
+        if (name.includes('2.0')) score += 600;
+        if (name.includes('2.5')) score += 700;
         
         if (preference === 'fast') {
-            if (name.includes('flash')) score += 50;
+            if (name.includes('flash')) score += 100;
+            if (name.includes('lite')) score += 50;
         } else {
-            if (name.includes('pro')) score += 50;
+            if (name.includes('pro')) score += 100;
         }
         
-        if (name.includes('preview') || name.includes('exp')) score -= 100;
-        if (name.includes('robotics')) score -= 1000; // Hard penalty for specialized models
-        if (name.includes('tts') || name.includes('image')) score -= 500; // Penalty for multi-modal specialized models
+        // Penalties for specialized or unstable models
+        if (name.includes('preview') || name.includes('exp')) score -= 200;
+        if (name.includes('robotics') || name.includes('vision') || name.includes('audio')) score -= 1000;
+        if (name.includes('tuning')) score -= 1000;
         
         return { name, score };
     }).sort((a, b) => b.score - a.score);
 
-    console.log('[Gemini Resolver] Scored models:', scored);
-    const selected = scored[0]?.name || (preference === 'fast' ? 'gemini-1.5-flash' : 'gemini-1.5-pro');
-    return selected;
+    console.log(`[Gemini Resolver] Created queue for ${preference}:`, scored.map(s => `${s.name} (${s.score})`));
+    return scored.map(s => s.name);
+}
+
+export async function resolveBestModel(preference: 'fast' | 'quality' = 'fast'): Promise<string> {
+    const queue = await resolveModelQueue(preference);
+    return queue[0] || (preference === 'fast' ? 'gemini-1.5-flash' : 'gemini-1.5-pro');
 }
