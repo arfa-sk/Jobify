@@ -1,8 +1,24 @@
-@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
 
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@theme {
+  --font-fraunces: "Fraunces", Georgia, serif;
+  --font-outfit: "Outfit", system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+
+  --color-bg-base: #f5f4f0;
+  --color-bg-surface: #ffffff;
+  --color-bg-elevated: #f9f8f6;
+  --color-border: #e4e2da;
+  --color-text-primary: #18181b;
+  --color-text-secondary: #52525b;
+  --color-text-muted: #a1a1aa;
+  --color-accent: #f57c00;
+  --color-accent-hover: #fb8c00;
+  --color-success: #16a34a;
+  --color-error: #dc2626;
+
+  --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+}
 
 @layer base {
   :root {
@@ -42,31 +58,38 @@
   }
 
   body {
-    @apply bg-base text-primary;
-    font-family: 'Outfit', system-ui, sans-serif;
+    background-color: var(--bg-base);
+    color: var(--text-primary);
+    font-family: var(--font-outfit);
   }
 
   h1, h2, h3, h4, h5, h6 {
-    font-family: 'Fraunces', Georgia, serif;
-  }
-
-  code, pre {
-    font-family: 'JetBrains Mono', monospace;
+    font-family: var(--font-fraunces);
   }
 }
 
-@layer components {
-  .glass-card {
-    @apply bg-surface/80 backdrop-blur-md border border-theme rounded-2xl shadow-xl;
-  }
+@utility glass-card {
+  background-color: rgb(var(--bg-surface) / 0.8);
+  backdrop-filter: blur(12px);
+  border: 1px solid var(--border);
+  border-radius: 1rem;
+  box-shadow: var(--shadow-xl);
+}
 
-  .btn-premium {
-    @apply px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 shadow-lg;
-    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
-    color: #fff;
+@utility btn-premium {
+  padding: 0.75rem 1.5rem;
+  border-radius: 0.75rem;
+  font-weight: 600;
+  transition: all 0.3s;
+  background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+  color: #fff;
+  box-shadow: var(--shadow-lg);
+  
+  &:hover {
+    transform: translateY(-0.125rem);
   }
-
-  .border-theme {
-    border-color: var(--border);
+  
+  &:active {
+    transform: translateY(0);
   }
 }
