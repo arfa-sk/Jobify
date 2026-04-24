@@ -1,11 +1,10 @@
 "use client"
 
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { Card } from "@/components/ui/card"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { Badge } from "@/components/ui/badge"
-import { mockJobs } from "@/lib/mockData"
 import { cn } from "@/lib/utils"
 import { useUser } from "@/hooks/useUser"
 import { useRouter, usePathname } from "next/navigation"
@@ -18,279 +17,268 @@ import {
   LogOut,
   ChevronRight,
   LayoutDashboard,
-  BrainCircuit,
-  FileCode,
+  BrainCircuit, 
   ChevronLeft,
   Briefcase,
-  MessageSquare,
-  Database,
-  Calendar,
-  Target,
+  History,
+  Upload,
+  Sparkles,
+  Loader2,
+  ExternalLink,
+  FileText,
+  Target
 } from "lucide-react"
 import Link from "next/link"
 
 export default function Dashboard() {
   const router = useRouter()
   const pathname = usePathname()
-  const [jobs] = useState(mockJobs)
-  const [isCollapsed, setIsCollapsed] = useState(false)
   const { user } = useUser()
+  const [isCollapsed, setIsCollapsed] = useState(false)
+  const [cvs, setCvs] = useState<any[]>([])
+  const [apps, setApps] = useState<any[]>([])
+  const [recentJobs, setRecentJobs] = useState<any[]>([])
+  const [loading, setLoading] = useState(true)
+  const [uploading, setUploading] = useState(false)
+
+  useEffect(() => {
+    if (user.id) {
+      fetchDashboardData()
+    }
+  }, [user])
+
+  const fetchDashboardData = async () => {
+    try {
+      const [cvRes, appRes, jobRes] = await Promise.all([
+        fetch(`/api/cv/branches?userId=${user.id || '000000000000000000000001'}`),
+        fetch(`/api/applications?userId=${user.id || '000000000000000000000001'}`),
+        fetch('/api/jobs')
+      ])
+      
+      const cvData = await cvRes.json()
+      const appData = await appRes.json()
+      const jobData = await jobRes.json()
+      
+      setCvs(cvData.branches || [])
+      setApps(appData.applications || [])
+      setRecentJobs((jobData.jobs || []).slice(0, 3))
+    } catch (err) {
+      console.error("Dashboard data sync failed", err)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    setUploading(true)
+    const formData = new FormData()
+    formData.append('cvFile', file)
+    formData.append('userId', user.id || '000000000000000000000001')
+    try {
+      await fetch('/api/cv/upload', { method: 'POST', body: formData })
+      fetchDashboardData()
+    } catch (err) {
+      console.error('Upload failed', err)
+    } finally {
+      setUploading(false)
+    }
+  }
 
   const navItems = [
-    { icon: LayoutDashboard, label: "Dashboard", href: "/dashboard" },
-    { icon: Briefcase, label: "Pipeline", href: "/pipeline" },
-    { icon: BrainCircuit, label: "AI Scraper", href: "/scraper" },
-    { icon: Calendar, label: "Interviews", href: "/interviews" },
-    { icon: Target, label: "Goals", href: "/goals" },
+    { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
+    { icon: FileText, label: "CV Management", href: "/dashboard/cv" },
+    { icon: Briefcase, label: "Job Discovery", href: "/pipeline" },
+    { icon: Target, label: "Track Applications", href: "/dashboard/applications" },
   ]
 
-  const workspaceItems = [
-    { icon: FileCode, label: "CV Branches", href: "/dashboard/cv" },
-    { icon: MessageSquare, label: "Mock Chat", href: "/chat" },
-    { icon: Database, label: "Data", href: "/data" },
-  ]
+  if (loading) {
+    return (
+      <div className="h-screen bg-[#0b0b14] flex items-center justify-center">
+        <Loader2 className="text-amber-500 animate-spin h-10 w-10" />
+      </div>
+    )
+  }
+
+  // FIRST TIME VIEW: If no CVs exist
+  const isFirstTime = cvs.length === 0
 
   return (
-    <div className="h-screen relative overflow-hidden bg-[#0b0b14] flex font-outfit">
-      {/* SOLID BLACK COLLAPSABLE SIDEBAR */}
-      <aside 
-        className={cn(
-          "h-full bg-[#05050a] border-r border-white/10 transition-all duration-500 ease-in-out flex flex-col relative z-30",
-          isCollapsed ? "w-20" : "w-72"
-        )}
-      >
-        {/* Toggle Button */}
-        <button 
-          onClick={() => setIsCollapsed(!isCollapsed)}
-          className="absolute -right-3 top-10 w-6 h-6 bg-amber-500 rounded-full flex items-center justify-center text-black border border-white/20 hover:bg-amber-400 transition-colors z-40"
-        >
-          {isCollapsed ? <ChevronRight size={14} /> : <ChevronLeft size={14} />}
-        </button>
-
-        <div className="p-6 flex-1 flex flex-col overflow-hidden">
-          {/* Logo Section */}
-          <div className={cn("mb-10 transition-all duration-500", isCollapsed ? "items-center" : "px-2")}>
-            <div className={cn("flex items-center gap-3", isCollapsed && "justify-center")}>
-              <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center border border-white/20 shrink-0 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-                <Zap className="text-black h-6 w-6" />
+    <div className="h-screen relative overflow-hidden bg-[#0b0b14] flex font-outfit text-white">
+      {/* SIDEBAR */}
+      <aside className={cn("h-full bg-[#05050a] border-r border-white/10 transition-all duration-500 flex flex-col relative z-30", isCollapsed ? "w-20" : "w-72")}>
+        <div className="p-8 flex-1 flex flex-col overflow-hidden">
+          <div className={cn("mb-12 flex items-center gap-3", isCollapsed && "justify-center")}>
+            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
+              <Zap className="text-black h-6 w-6" />
+            </div>
+            {!isCollapsed && (
+              <div>
+                <h1 className="text-xl font-black tracking-tighter leading-none">Jobify Pro</h1>
+                <p className="text-amber-500/80 text-[9px] uppercase tracking-widest font-bold mt-1">Intelligence</p>
               </div>
-              {!isCollapsed && (
-                <div>
-                  <h1 className="text-xl font-black text-white tracking-tighter leading-none">Jobify Pro</h1>
-                  <p className="text-amber-500/80 text-[9px] uppercase tracking-widest font-bold mt-1">Intelligence</p>
-                </div>
-              )}
-            </div>
+            )}
           </div>
 
-          {/* Navigation */}
-          <div className="space-y-8 flex-1 overflow-y-auto scrollbar-hide">
-            <div>
-              {!isCollapsed && <h4 className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-4 px-2">Discovery</h4>}
-              <nav className="space-y-1">
-                {navItems.map((item, index) => (
-                  <Button
-                    key={index}
-                    variant="ghost"
-                    onClick={() => router.push(item.href)}
-                    className={cn(
-                      "w-full transition-all duration-300 h-11 rounded-xl group",
-                      isCollapsed ? "justify-center px-0" : "justify-start px-3",
-                      pathname === item.href ? "bg-white/10 text-white border border-white/20 shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white border border-transparent"
-                    )}
-                  >
-                    <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", pathname === item.href ? "text-amber-500" : "group-hover:text-amber-500")} />
-                    {!isCollapsed && <span className="ml-3 text-sm font-semibold">{item.label}</span>}
-                  </Button>
-                ))}
-              </nav>
-            </div>
+          <nav className="space-y-2 flex-1">
+            {navItems.map((item, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                onClick={() => router.push(item.href)}
+                className={cn(
+                  "w-full h-12 rounded-xl group transition-all",
+                  isCollapsed ? "justify-center px-0" : "justify-start px-4",
+                  pathname === item.href ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "text-white/40 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <item.icon size={18} className={cn("shrink-0", pathname === item.href ? "text-amber-500" : "group-hover:text-amber-500")} />
+                {!isCollapsed && <span className="ml-4 text-xs font-bold uppercase tracking-wider">{item.label}</span>}
+              </Button>
+            ))}
+          </nav>
 
-            <div>
-              {!isCollapsed && <h4 className="text-white/40 text-[10px] font-bold uppercase tracking-widest mb-4 px-2">Workspace</h4>}
-              <nav className="space-y-1">
-                {workspaceItems.map((item, index) => (
-                  <Button
-                    key={index}
-                    variant="ghost"
-                    onClick={() => router.push(item.href)}
-                    className={cn(
-                      "w-full transition-all duration-300 h-11 rounded-xl group",
-                      isCollapsed ? "justify-center px-0" : "justify-start px-3",
-                      pathname === item.href ? "bg-white/10 text-white border border-white/20 shadow-lg" : "text-white/60 hover:bg-white/5 hover:text-white border border-transparent"
-                    )}
-                  >
-                    <item.icon className={cn("h-4 w-4 shrink-0 transition-colors", pathname === item.href ? "text-amber-500" : "group-hover:text-amber-500")} />
-                    {!isCollapsed && <span className="ml-3 text-sm font-semibold">{item.label}</span>}
-                  </Button>
-                ))}
-              </nav>
-            </div>
-          </div>
-
-          {/* Bottom Actions */}
-          <div className="pt-6 border-t border-white/10 mt-auto">
-            <nav className="space-y-1">
-              <Link href="/profile">
-                <Button variant="ghost" className={cn("w-full h-10 text-white/50 hover:text-white px-3", isCollapsed ? "justify-center px-0" : "justify-start")}>
-                  <Settings className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="ml-3 text-xs font-bold">Profile Settings</span>}
-                </Button>
-              </Link>
-              <Link href="/login">
-                <Button variant="ghost" className={cn("w-full h-10 text-white/50 hover:text-red-400 px-3", isCollapsed ? "justify-center px-0" : "justify-start")}>
-                  <LogOut className="h-4 w-4 shrink-0" />
-                  {!isCollapsed && <span className="ml-3 text-xs font-bold">Logout</span>}
-                </Button>
-              </Link>
-            </nav>
+          <div className="pt-8 border-t border-white/5 mt-auto space-y-2">
+            <Button variant="ghost" className={cn("w-full h-10 text-white/30 hover:text-white", isCollapsed ? "justify-center px-0" : "justify-start px-4")}>
+              <LogOut size={16} />
+              {!isCollapsed && <span className="ml-4 text-[10px] font-black uppercase tracking-widest">Logout</span>}
+            </Button>
           </div>
         </div>
       </aside>
 
-      {/* MAIN CONTENT AREA */}
+      {/* CONTENT */}
       <main className="flex-1 h-full overflow-hidden flex flex-col relative">
-        <div
-          className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-50 pointer-events-none"
-          style={{ backgroundImage: `url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Fractal%20Glass%20-%204.jpg-8QPt1A02QgjJIeTqwEYV5thwZXXEGT.jpeg')` }}
-        />
+        <div className="absolute inset-0 bg-cover bg-center bg-no-repeat opacity-20 pointer-events-none" style={{ backgroundImage: `url('https://hebbkx1anhila5yf.public.blob.vercel-storage.com/Fractal%20Glass%20-%204.jpg-8QPt1A02QgjJIeTqwEYV5thwZXXEGT.jpeg')` }} />
         
-        {/* Sticky Header */}
-        <header className="relative z-20 backdrop-blur-md bg-black/20 border-b border-white/10 px-8 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <h2 className="text-xl font-bold text-white tracking-tight uppercase">Overview</h2>
-            <div className="h-4 w-[1px] bg-white/20 mx-2" />
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/40 h-4 w-4" />
-              <Input
-                placeholder="Search resources..."
-                className="pl-9 w-64 bg-white/10 border border-white/20 rounded-xl text-xs text-white placeholder:text-white/40 focus:border-white/40"
-              />
-            </div>
-          </div>
-          
-          <div className="flex items-center gap-4">
-             <Button size="icon" variant="ghost" className="rounded-full text-white/60">
-                <Bell size={20} />
-             </Button>
-             <Link href="/profile" className="flex items-center gap-3 pl-2 border-l border-white/10 group cursor-pointer hover:bg-white/5 p-1 rounded-xl transition-all">
-                <div className="text-right">
-                  <p className="text-xs font-bold text-white group-hover:text-amber-500 transition-colors">{user.firstName} {user.lastName}</p>
-                  <p className="text-[10px] text-amber-500/60 uppercase font-black tracking-widest">{user.role}</p>
-                </div>
-                <div className="w-9 h-9 rounded-full bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-500 text-xs shadow-[0_0_15px_rgba(245,158,11,0.2)] group-hover:scale-105 transition-all">
-                  {user.firstName[0]}{user.lastName[0]}
-                </div>
-             </Link>
-          </div>
+        <header className="relative z-20 backdrop-blur-xl bg-black/40 border-b border-white/10 px-12 h-20 flex items-center justify-between">
+           <h2 className="text-xl font-black uppercase tracking-tighter italic">Command Center</h2>
+           <div className="flex items-center gap-6">
+              <div className="text-right">
+                <p className="text-xs font-bold text-white uppercase">{user.firstName} {user.lastName}</p>
+                <p className="text-[9px] text-amber-500/60 font-black tracking-widest uppercase italic">{user.role || 'Career Pilot'}</p>
+              </div>
+              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-500 text-xs shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                {user.firstName[0]}{user.lastName[0]}
+              </div>
+           </div>
         </header>
 
-        {/* Scrollable Content Area */}
-        <div className="flex-1 overflow-y-auto p-8 relative z-10 scrollbar-hide">
-          <div className="max-w-6xl mx-auto space-y-8">
-            
-            {/* APPLE-STYLE MINIMALIST STATS */}
-            <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-              {[
-                { title: "APPLICATIONS", value: jobs.length, delta: "+3", color: "text-amber-500" },
-                { title: "INTERVIEWS", value: "08", delta: "2 TODAY", color: "text-white" },
-                { title: "RELEVANCE", value: "84%", delta: "TOP 5%", color: "text-white" },
-                { title: "OFFERS", value: "02", delta: "PENDING", color: "text-amber-500" },
-              ].map((stat, index) => (
-                <div key={index} className="bg-white/5 backdrop-blur-xl border border-white/10 rounded-2xl p-5 hover:bg-white/10 transition-all cursor-default flex flex-col justify-between h-28 group">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[9px] font-black text-white/40 uppercase tracking-widest">{stat.title}</span>
-                    <span className={cn("text-[9px] font-black uppercase tracking-widest", stat.delta.includes('+') ? "text-amber-500" : "text-white/20")}>{stat.delta}</span>
+        <div className="flex-1 overflow-y-auto p-12 relative z-10 scrollbar-hide">
+          <div className="max-w-6xl mx-auto">
+            {isFirstTime ? (
+               <div className="py-24 animate-in fade-in zoom-in-95 duration-700">
+                  <Card className="bg-white/5 border-amber-500/20 rounded-[40px] p-16 text-center space-y-8 relative overflow-hidden group">
+                     <div className="absolute top-0 right-0 w-64 h-64 bg-amber-500/5 blur-[100px] pointer-events-none" />
+                     <div className="w-24 h-24 bg-amber-500/20 rounded-3xl flex items-center justify-center mx-auto border border-amber-500/30 shadow-[0_0_30px_rgba(245,158,11,0.3)] group-hover:scale-110 transition-transform duration-500">
+                        <Upload className="text-amber-500 h-10 w-10" />
+                     </div>
+                     <div className="space-y-4 max-w-2xl mx-auto">
+                        <h3 className="text-5xl font-black tracking-tighter uppercase italic leading-none">Initialize Your Profile</h3>
+                        <p className="text-white/40 text-sm font-medium leading-relaxed italic uppercase tracking-wider">
+                           To activate the Xperia-Autonomous Discovery engine, you must first upload your master profile. We will analyze your skills and bridge you to high-relevance opportunities.
+                        </p>
+                     </div>
+                     <label className={cn("inline-flex items-center gap-3 px-12 h-16 bg-white text-black rounded-2xl cursor-pointer hover:bg-amber-500 transition-all font-black uppercase tracking-widest text-xs shadow-2xl", uploading && "opacity-50 pointer-events-none")}>
+                        {uploading ? <Loader2 size={18} className="animate-spin" /> : <Sparkles size={18} />}
+                        {uploading ? "Analyzing Profile..." : "Upload Master CV"}
+                        <input type="file" className="hidden" onChange={handleUpload} accept=".pdf,.docx" disabled={uploading} />
+                     </label>
+                  </Card>
+               </div>
+            ) : (
+               <div className="space-y-12 animate-in fade-in duration-700">
+                  {/* Returning View Stats */}
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+                     <Card className="bg-white/5 border-white/10 rounded-[32px] p-8 space-y-4">
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Active Discovery</p>
+                        <h4 className="text-4xl font-black text-amber-500 tracking-tighter">159 <span className="text-xs text-white/40 italic">Jobs Syncing</span></h4>
+                        <Button onClick={() => router.push('/pipeline')} variant="ghost" className="h-8 px-0 text-[9px] font-black uppercase tracking-widest text-amber-500 hover:bg-transparent hover:text-amber-400">Launch Pipeline →</Button>
+                     </Card>
+                     <Card className="bg-white/5 border-white/10 rounded-[32px] p-8 space-y-4">
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Application Status</p>
+                        <h4 className="text-4xl font-black text-white tracking-tighter">{apps.length} <span className="text-xs text-white/40 italic">Active</span></h4>
+                        <Button onClick={() => router.push('/dashboard/applications')} variant="ghost" className="h-8 px-0 text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-transparent hover:text-white">View Ledger →</Button>
+                     </Card>
+                     <Card className="bg-white/5 border-white/10 rounded-[32px] p-8 space-y-4">
+                        <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">CV Profile Strength</p>
+                        <h4 className="text-4xl font-black text-white tracking-tighter">84% <span className="text-xs text-white/40 italic">Verified</span></h4>
+                        <Button onClick={() => router.push('/dashboard/cv')} variant="ghost" className="h-8 px-0 text-[9px] font-black uppercase tracking-widest text-white/40 hover:bg-transparent hover:text-white">Optimize Branches →</Button>
+                     </Card>
                   </div>
-                  <div>
-                    <h3 className={cn("text-3xl font-black tracking-tighter", stat.color)}>{stat.value}</h3>
-                  </div>
-                  <div className="h-1 w-full bg-white/5 rounded-full mt-2 overflow-hidden">
-                    <div className={cn("h-full transition-all duration-1000", index % 2 === 0 ? "bg-amber-500 w-2/3" : "bg-white/20 w-1/3")} />
-                  </div>
-                </div>
-              ))}
-            </div>
 
-            {/* Main Sections */}
-            <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
-              <div className="lg:col-span-8 space-y-8">
-                <Card className="bg-white/5 backdrop-blur-xl border border-white/15 rounded-[32px] p-8 shadow-2xl">
-                  <div className="flex items-center justify-between mb-8">
-                    <div>
-                      <h3 className="text-2xl font-bold text-white tracking-tight uppercase">Active Applications</h3>
-                      <p className="text-white/40 text-xs mt-1 font-bold uppercase tracking-widest">Track your progress across companies.</p>
-                    </div>
-                    <Button className="btn-premium flex items-center gap-2">
-                      <Plus className="h-4 w-4" /> 
-                      <span className="text-[10px] font-black uppercase tracking-widest">Add Application</span>
-                    </Button>
-                  </div>
-
-                  <div className="space-y-3">
-                    {jobs.map((job, index) => (
-                      <div key={index} className="flex items-center justify-between p-5 bg-white/5 hover:bg-white/10 border border-white/10 rounded-2xl transition-all group cursor-pointer">
-                        <div className="flex items-center gap-5">
-                          <div className="w-12 h-12 rounded-xl bg-white/10 border border-white/20 flex items-center justify-center font-bold text-white text-xs group-hover:border-amber-500/40 transition-colors">
-                            {job.company.substring(0, 2).toUpperCase()}
-                          </div>
-                          <div>
-                            <h4 className="font-bold text-white text-sm group-hover:text-amber-500 transition-colors tracking-tight">{job.title}</h4>
-                            <p className="text-[10px] text-white/50 font-bold uppercase tracking-wider mt-0.5">{job.company} • {job.location}</p>
-                          </div>
+                  {/* Recent Activity */}
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-12">
+                     <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                           <h3 className="text-2xl font-black uppercase tracking-tighter italic">Live Ledger</h3>
+                           <Button onClick={() => router.push('/dashboard/applications')} variant="ghost" className="text-[9px] font-black uppercase tracking-widest text-white/40 hover:text-white h-auto p-0">View All</Button>
                         </div>
-                        <div className="text-right">
-                          <p className="text-xs font-black text-amber-500 tracking-tighter">{job.relevanceScore}% FIT</p>
-                          <Badge className="mt-1 bg-white/10 border border-white/20 text-[9px] font-black text-white/60 group-hover:text-white transition-colors uppercase">
-                            {job.status}
-                          </Badge>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                           {apps.length === 0 ? (
+                              <Card className="bg-white/[0.02] border-dashed border-2 border-white/5 rounded-[32px] py-20 text-center">
+                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">No recent applications</p>
+                              </Card>
+                           ) : (
+                              apps.slice(0, 3).map((app, i) => (
+                                 <Card key={i} className="bg-white/5 border-white/10 rounded-2xl p-6 flex items-center justify-between group hover:bg-white/[0.08] transition-all">
+                                    <div className="flex items-center gap-4">
+                                       <div className="w-10 h-10 bg-white/10 rounded-lg flex items-center justify-center font-black text-xs">
+                                          {app.jobTitle?.[0]}
+                                       </div>
+                                       <div>
+                                          <h5 className="font-bold text-white text-sm tracking-tight leading-none mb-1">{app.jobTitle}</h5>
+                                          <p className="text-[9px] font-black text-white/30 uppercase tracking-widest">{app.company}</p>
+                                       </div>
+                                    </div>
+                                    <Badge className="bg-white/5 border-white/10 text-[8px] font-black uppercase px-3 py-1">
+                                       {app.status}
+                                    </Badge>
+                                 </Card>
+                              ))
+                           )}
                         </div>
-                      </div>
-                    ))}
+                     </div>
+
+                     <div className="space-y-6">
+                        <div className="flex items-center justify-between">
+                           <h3 className="text-2xl font-black uppercase tracking-tighter italic text-amber-500">Recent Discoveries</h3>
+                           <Button onClick={() => router.push('/pipeline')} variant="ghost" className="text-[9px] font-black uppercase tracking-widest text-amber-500/60 hover:text-amber-500 h-auto p-0">Open Pipeline</Button>
+                        </div>
+                        
+                        <div className="grid grid-cols-1 gap-4">
+                           {recentJobs.length === 0 ? (
+                              <Card className="bg-white/[0.02] border-dashed border-2 border-white/5 rounded-[32px] py-20 text-center">
+                                 <p className="text-[10px] font-black text-white/20 uppercase tracking-widest">Awaiting Scan...</p>
+                              </Card>
+                           ) : (
+                              recentJobs.map((job, i) => (
+                                 <Card key={i} className="bg-gradient-to-br from-white/5 to-transparent border-white/10 rounded-2xl p-6 flex items-center justify-between group hover:border-amber-500/30 transition-all">
+                                    <div className="flex items-center gap-4">
+                                       <div className="w-10 h-10 bg-amber-500/10 border border-amber-500/20 rounded-lg flex items-center justify-center font-black text-xs text-amber-500">
+                                          {job.company?.[0]}
+                                       </div>
+                                       <div>
+                                          <div className="flex items-center gap-2">
+                                             <h5 className="font-bold text-white text-sm tracking-tight leading-none">{job.title}</h5>
+                                             <span className="text-[8px] font-black text-amber-500 uppercase">{job.relevanceScore}% Match</span>
+                                          </div>
+                                          <p className="text-[9px] font-black text-white/30 uppercase tracking-widest mt-1">{job.company} • {job.location}</p>
+                                       </div>
+                                    </div>
+                                    <Button onClick={() => router.push('/pipeline')} size="icon" className="w-8 h-8 rounded-lg bg-white/5 hover:bg-amber-500 hover:text-black transition-all">
+                                       <ChevronRight size={14} />
+                                    </Button>
+                                 </Card>
+                              ))
+                           )}
+                        </div>
+                     </div>
                   </div>
-                </Card>
-              </div>
-
-              <div className="lg:col-span-4 space-y-8">
-                <Card className="bg-white/5 backdrop-blur-xl border border-white/15 rounded-[32px] p-8 shadow-2xl">
-                  <h3 className="text-xl font-black text-white mb-8 tracking-tighter uppercase">Performance</h3>
-                  
-                  <div className="space-y-8">
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Weekly Target</p>
-                          <p className="text-xl font-bold text-white mt-1">10 / 15 Jobs</p>
-                        </div>
-                        <span className="text-[10px] font-black text-amber-500">68%</span>
-                      </div>
-                      <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/10">
-                        <div className="h-full bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)]" style={{ width: '68%' }} />
-                      </div>
-                    </div>
-
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-end">
-                        <div>
-                          <p className="text-[10px] font-black text-white/40 uppercase tracking-widest">Skill Alignment</p>
-                          <p className="text-xl font-bold text-white mt-1 tracking-tight">Ready for Roles</p>
-                        </div>
-                        <span className="text-[10px] font-black text-amber-500">84%</span>
-                      </div>
-                      <div className="h-2 w-full bg-white/10 rounded-full overflow-hidden border border-white/10">
-                        <div className="h-full bg-amber-500 rounded-full shadow-[0_0_15px_rgba(245,158,11,0.5)]" style={{ width: '84%' }} />
-                      </div>
-                    </div>
-
-                    <Card className="bg-amber-500/10 border border-amber-500/20 rounded-2xl p-6 text-center group cursor-pointer hover:bg-amber-500/20 transition-all">
-                       <BrainCircuit className="mx-auto text-amber-500 mb-3" size={24} />
-                       <h4 className="text-sm font-black text-white mb-1 uppercase tracking-widest">Xperia AI</h4>
-                       <p className="text-[10px] text-white/40 leading-relaxed font-bold uppercase tracking-widest">Get real-time insights on your relevance scoring.</p>
-                    </Card>
-                  </div>
-                </Card>
-              </div>
-            </div>
+               </div>
+            )}
           </div>
         </div>
       </main>

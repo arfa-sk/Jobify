@@ -23,6 +23,10 @@ export async function listAvailableModels(): Promise<string[]> {
         );
         
         if (!response.ok) {
+            if (response.status === 403) {
+                console.warn('[Gemini] API Key blocked or Forbidden. Signaling for fallback.');
+                return []; // Return empty so fallback logic triggers
+            }
             throw new Error(`Failed to list models: ${response.statusText}`);
         }
 
@@ -36,7 +40,7 @@ export async function listAvailableModels(): Promise<string[]> {
         return models;
     } catch (error) {
         console.error('Error fetching Gemini models:', error);
-        return ['gemini-1.5-flash', 'gemini-1.5-pro', 'gemini-pro']; // Fallbacks
+        return []; // Return empty on any error to force fallback switch
     }
 }
 

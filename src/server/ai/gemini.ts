@@ -1,8 +1,11 @@
 import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 import * as fs from 'fs';
+import axios from 'axios';
 import { resolveBestModel } from './model-resolver';
 
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
+export const XAI_API_KEY = process.env.XAI_API_KEY || '';
+
 const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 export interface GenerateContentResult {
@@ -15,9 +18,45 @@ export interface GenerateContentResult {
 }
 
 /**
- * Standard analyze text (Legacy support for Job Pipeline)
+ * Call Grok (xAI) API
+ */
+async function callGrok(prompt: string, text: string): Promise<string> {
+    if (!XAI_API_KEY) return "";
+    try {
+        const response = await axios.post(
+            'https://api.x.ai/v1/chat/completions',
+            {
+                model: 'grok-beta',
+                messages: [
+                    { role: 'system', content: prompt },
+                    { role: 'user', content: text }
+                ],
+                temperature: 0
+            },
+            {
+                headers: {
+                    'Authorization': `Bearer ${XAI_API_KEY}`,
+                    'Content-Type': 'application/json'
+                }
+            }
+        );
+        const content = response.data.choices[0].message.content || "";
+        return content.trim();
+    } catch (err: any) {
+        console.error("[Grok] Error:", err.response?.data || err.message);
+        return "";
+    }
+}
+
+/**
+ * Standard analyze text (With Grok Fallback)
  */
 export const analyzeText = async (prompt: string, text: string): Promise<string> => {
+  // If Gemini is blocked or missing, try Grok first if key exists
+  if (!GEMINI_API_KEY && XAI_API_KEY) {
+      return await callGrok(prompt, text);
+  }
+
   try {
     const resolvedModel = await resolveBestModel('fast');
     const model = genAI.getGenerativeModel({ 
@@ -30,26 +69,62 @@ export const analyzeText = async (prompt: string, text: string): Promise<string>
     });
     const result = await model.generateContent([prompt, text]);
     return result.response.text();
-  } catch (err) {
-    console.error("[Gemini] Error:", err);
+  } catch (err: any) {
+    console.error("[Gemini] Error:", err.message);
+    
+    // Fallback to Grok if Gemini fails (e.g., 403 Blocked)
+    if (XAI_API_KEY) {
+        console.log("[AI] Falling back to Grok (xAI)...");
+        return await callGrok(prompt, text);
+    }
+    
     return "";
   }
 };
 
 /**
- * Convert file path to Gemini Part object
+ * Generate structured JSON response (With Grok Fallback)
  */
-function fileToGenerativePart(filePath: string, mimeType: string): Part {
-    return {
-        inlineData: {
-            data: Buffer.from(fs.readFileSync(filePath)).toString('base64'),
-            mimeType,
-        },
+export async function generateStructuredResponse<T>(
+    prompt: string,
+    modelName?: string
+): Promise<T> {
+    const runGemini = async () => {
+        const resolvedModel = modelName || await resolveBestModel('quality');
+        const model = genAI.getGenerativeModel({ 
+            model: resolvedModel,
+            generationConfig: { 
+                responseMimeType: 'application/json',
+                temperature: 0,
+                topP: 0.1,
+                topK: 1
+            }
+        });
+        const result = await model.generateContent(prompt);
+        const text = result.response.text();
+        return JSON.parse(text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim());
     };
+
+    const runGrok = async () => {
+        if (!XAI_API_KEY) throw new Error("No AI providers available.");
+        const raw = await callGrok("Return ONLY valid JSON.", prompt);
+        if (!raw) throw new Error("Grok failed to return content.");
+        const sanitized = raw.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+        return JSON.parse(sanitized);
+    };
+
+    try {
+        if (!GEMINI_API_KEY && XAI_API_KEY) return await runGrok();
+        return await runGemini();
+    } catch (err) {
+        console.error("[AI] Provider failed, attempting fallback...");
+        if (XAI_API_KEY) return await runGrok();
+        throw err;
+    }
 }
 
 /**
- * Generate content with file input using Gemini
+ * Legacy support for file analysis
  */
 export async function generateContentWithFile(
     prompt: string,
@@ -58,78 +133,13 @@ export async function generateContentWithFile(
     modelName?: string
 ): Promise<GenerateContentResult> {
     const resolvedModel = modelName || await resolveBestModel('fast');
-    console.log(`[Gemini] Using model: ${resolvedModel}`);
-    const model = genAI.getGenerativeModel({ 
-        model: resolvedModel,
-        generationConfig: { 
-            temperature: 0,
-            topP: 0.1,
-            topK: 1
-        }
-    });
-    const filePart = fileToGenerativePart(filePath, mimeType);
-    const textPart: Part = { text: prompt };
-    const parts: Part[] = [textPart, filePart];
-
-    const result = await model.generateContent({
-        contents: [{ role: 'user', parts }],
-    });
-    const response = result.response;
-    const text = response.text();
-
-    return {
-        text,
-        usage: response.usageMetadata ? {
-            promptTokens: response.usageMetadata.promptTokenCount,
-            completionTokens: response.usageMetadata.candidatesTokenCount,
-            totalTokens: response.usageMetadata.totalTokenCount,
-        } : undefined
+    const model = genAI.getGenerativeModel({ model: resolvedModel });
+    const filePart = {
+        inlineData: {
+            data: Buffer.from(fs.readFileSync(filePath)).toString('base64'),
+            mimeType,
+        },
     };
-}
-
-/**
- * Generate structured JSON response using Gemini.
- */
-export async function generateStructuredResponse<T>(
-    prompt: string,
-    modelName?: string
-): Promise<T> {
-    const resolvedModel = modelName || await resolveBestModel('quality');
-    console.log(`[Gemini] Using structured model: ${resolvedModel}`);
-    const model = genAI.getGenerativeModel({ 
-        model: resolvedModel,
-        generationConfig: { 
-            responseMimeType: 'application/json',
-            temperature: 0,
-            topP: 0.1,
-            topK: 1
-        }
-    });
-
-    const result = await model.generateContent(prompt);
-    const response = result.response;
-    const text = response.text();
-
-    try {
-        // Strip any leading/trailing whitespace or markdown fences
-        const cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        return JSON.parse(cleanedText) as T;
-    } catch (err) {
-        console.warn("[Gemini] Direct parse failed, attempting regex extract on:", text.substring(0, 50) + "...");
-        
-        // Try to find the first '{' and last '}' to extract a single JSON object
-        const firstBrace = text.indexOf('{');
-        const lastBrace = text.lastIndexOf('}');
-        
-        if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-            try {
-                const extracted = text.substring(firstBrace, lastBrace + 1);
-                return JSON.parse(extracted) as T;
-            } catch (innerErr) {
-                console.error("[Gemini] Deep regex extract failed.");
-            }
-        }
-        
-        throw new Error('Failed to parse AI response as JSON. Raw output: ' + text.substring(0, 100));
-    }
+    const result = await model.generateContent([prompt, filePart]);
+    return { text: result.response.text() };
 }
