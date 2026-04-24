@@ -1,0 +1,134 @@
+{
+  "info": {
+    "_postman_id": "1b78ee08-c123-4c83-b020-cf8ce127bf66",
+    "name": "Jobify API",
+    "description": "Collection for Jobify Next.js API routes.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Get Jobs",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs?page=1&limit=20&status=all&search=backend",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "jobs"
+          ],
+          "query": [
+            {
+              "key": "page",
+              "value": "1"
+            },
+            {
+              "key": "limit",
+              "value": "20"
+            },
+            {
+              "key": "status",
+              "value": "all"
+            },
+            {
+              "key": "search",
+              "value": "backend"
+            }
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Get Job By ID",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/api/jobs/{{jobId}}",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "jobs",
+            "{{jobId}}"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Analyze Job With CV",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"jobId\": \"{{jobId}}\",\n  \"cvText\": \"{{cvText}}\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/analyze",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "analyze"
+          ]
+        }
+      },
+      "response": []
+    },
+    {
+      "name": "Trigger Pipeline",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "x-cron-secret",
+            "value": "{{cronSecret}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/pipeline/trigger",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "pipeline",
+            "trigger"
+          ]
+        }
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3000"
+    },
+    {
+      "key": "jobId",
+      "value": ""
+    },
+    {
+      "key": "cvText",
+      "value": "Experienced software engineer with 5+ years building backend APIs with Node.js, TypeScript, PostgreSQL, and cloud-native tooling. Strong ownership of architecture, testing, and CI/CD."
+    },
+    {
+      "key": "cronSecret",
+      "value": ""
+    }
+  ]
+}
