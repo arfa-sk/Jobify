@@ -1,5 +1,3 @@
-<<<<<<< HEAD
-=======
 import type { Metadata } from "next";
 import "./globals.css";
 import { ThemeProvider } from "@/components/theme-provider";
@@ -10,17 +8,12 @@ export const metadata: Metadata = {
   description: "Next-generation job application management and career optimization platform.",
 };
 
->>>>>>> main
 export default function RootLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
   return (
-<<<<<<< HEAD
-    <html lang="en">
-      <body>{children}</body>
-=======
     <html lang="en" suppressHydrationWarning>
       <head>
         <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800;900&display=swap" />
@@ -38,7 +31,6 @@ export default function RootLayout({
           </ThemeProvider>
         </UserProvider>
       </body>
->>>>>>> main
     </html>
   );
 }
