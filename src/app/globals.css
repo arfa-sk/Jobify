@@ -1,0 +1,72 @@
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,400;0,9..144,600;0,9..144,700;1,9..144,300;1,9..144,400&family=Outfit:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&family=Manrope:wght@400;600;700;800&family=Plus+Jakarta+Sans:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    --bg-base: #f5f4f0;
+    --bg-surface: #ffffff;
+    --bg-elevated: #f9f8f6;
+    --border: #e4e2da;
+    --text-primary: #18181b;
+    --text-secondary: #52525b;
+    --text-muted: #a1a1aa;
+    --accent: #f57c00;
+    --accent-hover: #fb8c00;
+    --success: #16a34a;
+    --error: #dc2626;
+  }
+
+  .dark {
+    --bg-base: #0f0f17;
+    --bg-surface: #161621;
+    --bg-elevated: #1c1c2b;
+    --bg-raised: #242438;
+    --border: #2d2d3f;
+    --border-subtle: #242434;
+    --border-bright: #404060;
+    --text-primary: #eeeef8;
+    --text-secondary: #9090b4;
+    --text-muted: #585878;
+    --accent: #f57c00;
+    --accent-hover: #fb8c00;
+    --success: #2dd4a0;
+    --error: #f46464;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing: antialiased;
+  }
+
+  body {
+    @apply bg-base text-primary;
+    font-family: 'Outfit', system-ui, sans-serif;
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    font-family: 'Fraunces', Georgia, serif;
+  }
+
+  code, pre {
+    font-family: 'JetBrains Mono', monospace;
+  }
+}
+
+@layer components {
+  .glass-card {
+    @apply bg-surface/80 backdrop-blur-md border border-theme rounded-2xl shadow-xl;
+  }
+
+  .btn-premium {
+    @apply px-6 py-3 rounded-xl font-semibold transition-all duration-300 transform hover:-translate-y-0.5 active:translate-y-0 shadow-lg;
+    background: linear-gradient(135deg, var(--accent), var(--accent-hover));
+    color: #fff;
+  }
+
+  .border-theme {
+    border-color: var(--border);
+  }
+}
