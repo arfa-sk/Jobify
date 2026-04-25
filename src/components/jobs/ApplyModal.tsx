@@ -133,7 +133,7 @@ export default function ApplyModal({ isOpen, onClose, job, cvs, userId, onRefres
                                     {tailorResult.changes.slice(0, 3).map((c: any, i: number) => (
                                         <div key={i} className="flex gap-2 text-[9px] text-slate-400">
                                             <span className="text-amber-500 font-bold min-w-[50px]">{c.section}:</span>
-                                            <span className="italic">{c.description}</span>
+                                            <span className="text-white/80">{c.description}</span>
                                         </div>
                                     ))}
                                 </div>

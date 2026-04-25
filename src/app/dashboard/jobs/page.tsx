@@ -1,14 +1,16 @@
 'use client';
 
 import React, { useState, useEffect } from 'react';
-import { Briefcase, MapPin, DollarSign, Send, Search, Filter, Sparkles } from 'lucide-react';
+import { Briefcase, MapPin, DollarSign, Send, Search, Filter, Sparkles, ArrowLeft } from 'lucide-react';
 import ApplyModal from '@/components/jobs/ApplyModal';
+import { useRouter } from 'next/navigation';
 
 export default function JobsDashboard() {
     const [jobs, setJobs] = useState<any[]>([]);
     const [loading, setLoading] = useState(true);
     const [selectedJob, setSelectedJob] = useState<any>(null);
     const [isApplyModalOpen, setIsApplyModalOpen] = useState(false);
+    const router = useRouter();
     
     // For demo purposes, we'll fetch the user's primary CV
     const [cvs, setCvs] = useState<any[]>([]);
@@ -53,7 +55,11 @@ export default function JobsDashboard() {
                 {/* Header */}
                 <header className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                     <div>
-                        <h1 className="text-4xl font-black tracking-tight">Available Positions</h1>
+                        <button onClick={() => router.push('/dashboard')} className="flex items-center text-slate-500 hover:text-white transition-all group mb-4">
+                            <ArrowLeft className="h-4 w-4 mr-2 group-hover:-translate-x-1 transition-transform" /> 
+                            <span className="text-[10px] font-semibold uppercase tracking-normal">Back to Dashboard</span>
+                        </button>
+                        <h1 className="text-4xl font-semibold tracking-tight">Available Positions</h1>
                         <p className="text-slate-500 mt-2">Premium opportunities tailored for your expertise.</p>
                     </div>
                     
@@ -90,14 +96,14 @@ export default function JobsDashboard() {
                                             <Briefcase size={24} />
                                         </div>
                                         {job.salary && (
-                                            <span className="text-[10px] font-bold text-amber-500/60 bg-amber-500/10 px-3 py-1 rounded-full uppercase tracking-widest">
+                                            <span className="text-[10px] font-bold text-amber-500/60 bg-amber-500/10 px-3 py-1 rounded-full uppercase tracking-normal">
                                                 {job.salary}
                                             </span>
                                         )}
                                     </div>
 
                                     <div>
-                                        <h3 className="text-xl font-black text-white group-hover:text-amber-500 transition-colors duration-300">{job.title}</h3>
+                                        <h3 className="text-xl font-semibold text-white group-hover:text-amber-500 transition-colors duration-300">{job.title}</h3>
                                         <p className="text-slate-400 font-medium">{job.company}</p>
                                     </div>
 
@@ -122,7 +128,7 @@ export default function JobsDashboard() {
                                             className="flex-1 btn-premium text-xs flex items-center justify-center gap-2"
                                         >
                                             <Sparkles size={16} />
-                                            One-Click Apply
+                                            Apply
                                         </button>
                                         <button className="w-12 h-12 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-slate-400 hover:text-white transition-all">
                                             <Send size={18} />

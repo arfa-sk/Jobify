@@ -5,70 +5,96 @@ import { JsonResumeSchema } from '@/types/cv';
 import crypto from 'crypto';
 
 const MASTER_ANALYSIS_PROMPT = `
-Analyze the provided CV document JSON. Your goal is to perform a comprehensive review covering content, structure, and language.
+Analyze the provided CV document JSON for ATS (Applicant Tracking System) optimization.
+Evaluate:
+1. Impact (Quantifiable results)
+2. Skills density
+3. Format and structure
+4. Summary impact
 
-**Analysis Checks to Perform:**
-1. Impact Quantification
-2. Grammar and Spelling
-3. Keyword Relevance
-4. Active Voice Usage
-5. Section Completeness
-6. Contact Information
-...
-Return a JSON object with keys corresponding to these checks.
+Return a JSON object where each key is a check category:
+{
+  "ATS Formatting": { "checkName": "ATS Formatting", "score": 85, "status": "pass", "issues": [], "suggestions": ["Use standard fonts"] },
+  ...
+}
 `;
 
 export function generateCvHash(cvJson: JsonResumeSchema): string {
     const normalizedCv = {
         basics: { summary: cvJson.basics?.summary || '' },
         work: (cvJson.work || []).map(w => ({ name: w.name, position: w.position, summary: w.summary })),
-        education: (cvJson.education || []).map(e => ({ institution: e.institution, area: e.area })),
         skills: (cvJson.skills || []).map(s => ({ name: s.name, keywords: s.keywords })),
-        projects: (cvJson.projects || []).map(p => ({ name: p.name, description: p.description }))
     };
     return crypto.createHash('sha256').update(JSON.stringify(normalizedCv)).digest('hex');
 }
 
 /**
- * HEURISTIC ANALYSIS: Analyzes CV without any API calls.
+ * DYNAMIC HEURISTIC ENGINE: Real-time ATS scoring without AI.
  */
 function runHeuristicAnalysis(cvJson: JsonResumeSchema): any {
     const checks: any = {};
-    
-    // Check 1: Contact Info
-    const hasContact = cvJson.basics?.email && cvJson.basics?.phone;
-    checks["Contact Information"] = {
-        checkName: "Contact Information",
-        score: hasContact ? 100 : 50,
-        status: hasContact ? "pass" : "warning",
-        issues: hasContact ? [] : ["Missing email or phone number."],
-        suggestions: hasContact ? [] : ["Ensure your contact details are complete for recruiters."],
+    let totalScore = 0;
+    let issues = 0;
+
+    // Check 1: Impact Metrics (Real ATS Check)
+    const workText = (cvJson.work || []).map(w => w.summary).join(' ');
+    const hasNumbers = /\b\d+(%|\+)?\b/.test(workText);
+    const metricScore = hasNumbers ? 100 : 40;
+    totalScore += metricScore;
+    if (!hasNumbers) issues++;
+    checks["Impact Quantification"] = {
+        checkName: "Impact Quantification",
+        score: metricScore,
+        status: hasNumbers ? "pass" : "fail",
+        issues: hasNumbers ? [] : ["Low quantifiable impact. Recruiters look for numbers (% or $)."],
+        suggestions: ["Add metrics like 'Increased efficiency by 20%' to bullets."],
         priority: "high"
     };
 
-    // Check 2: Summary
-    const summaryLen = cvJson.basics?.summary?.length || 0;
-    checks["Summary/Objective Quality"] = {
-        checkName: "Summary/Objective Quality",
-        score: summaryLen > 100 ? 100 : 40,
-        status: summaryLen > 100 ? "pass" : "warning",
-        issues: summaryLen > 100 ? [] : ["Professional summary is too short or missing."],
-        suggestions: ["Aim for 3-4 sentences highlighting your unique value proposition."],
+    // Check 2: Skills Coverage
+    const skillCount = (cvJson.skills || []).reduce((acc, s) => acc + (s.keywords?.length || 0), 0);
+    const skillScore = skillCount > 15 ? 100 : skillCount > 8 ? 70 : 40;
+    totalScore += skillScore;
+    if (skillCount < 10) issues++;
+    checks["Keyword Density"] = {
+        checkName: "Keyword Density",
+        score: skillScore,
+        status: skillCount > 10 ? "pass" : "warning",
+        issues: skillCount > 10 ? [] : ["Low technical keyword density."],
+        suggestions: ["Expand your technical skills section with more industry-specific tools."],
         priority: "medium"
     };
 
-    // Check 3: Experience
-    const workCount = cvJson.work?.length || 0;
-    checks["Work Experience"] = {
-        checkName: "Work Experience",
-        score: workCount > 2 ? 100 : 60,
-        status: workCount > 2 ? "pass" : "warning",
-        issues: workCount > 0 ? [] : ["No work experience listed."],
-        suggestions: ["Add at least 3 relevant roles if possible."],
+    // Check 3: Summary Strength
+    const summaryLen = cvJson.basics?.summary?.length || 0;
+    const summaryScore = summaryLen > 150 ? 100 : summaryLen > 50 ? 60 : 30;
+    totalScore += summaryScore;
+    if (summaryLen < 100) issues++;
+    checks["Professional Narrative"] = {
+        checkName: "Professional Narrative",
+        score: summaryScore,
+        status: summaryLen > 150 ? "pass" : "warning",
+        issues: summaryLen > 150 ? [] : ["Executive summary lacks depth."],
+        suggestions: ["Structure your summary to highlight 5+ years of core expertise."],
         priority: "high"
     };
 
-    return checks;
+    // Check 4: Contact & Location
+    const hasContact = cvJson.basics?.email && cvJson.basics?.location?.city;
+    const contactScore = hasContact ? 100 : 50;
+    totalScore += contactScore;
+    if (!hasContact) issues++;
+    checks["ATS Metadata"] = {
+        checkName: "ATS Metadata",
+        score: contactScore,
+        status: hasContact ? "pass" : "fail",
+        issues: hasContact ? [] : ["Missing city or email address."],
+        suggestions: ["Ensure your location (City, State) is present for local ATS filtering."],
+        priority: "medium"
+    };
+
+    const overallScore = Math.round(totalScore / 4);
+    return { results: checks, overallScore, issueCount: issues };
 }
 
 export async function performFullAnalysis(
@@ -77,7 +103,6 @@ export async function performFullAnalysis(
     cvJson: JsonResumeSchema
 ): Promise<ICvAnalysis> {
     const cvHash = generateCvHash(cvJson);
-    const prompt = `${MASTER_ANALYSIS_PROMPT}\n\nCV Data:\n${JSON.stringify(cvJson)}`;
 
     const analysis = await CvAnalysis.create({
         userId: new Types.ObjectId(userId),
@@ -87,11 +112,30 @@ export async function performFullAnalysis(
     });
 
     try {
+        const prompt = `${MASTER_ANALYSIS_PROMPT}\n\nCV Data:\n${JSON.stringify(cvJson)}`;
         const results = await generateStructuredResponse<any>(prompt);
         
         const checkValues = Object.values(results) as any[];
-        const scores = checkValues.map(r => r.score).filter(s => typeof s === 'number');
-        const overallScore = scores.length > 0 ? Math.round(scores.reduce((a, b) => a + b, 0) / scores.length) : 0;
+        let totalScore = 0;
+        let validScores = 0;
+
+        checkValues.forEach(r => {
+            if (typeof r.score === 'number') {
+                totalScore += r.score;
+                validScores++;
+            } else if (r.status === 'pass') {
+                totalScore += 100;
+                validScores++;
+            } else if (r.status === 'warning') {
+                totalScore += 50;
+                validScores++;
+            } else if (r.status === 'fail') {
+                totalScore += 0;
+                validScores++;
+            }
+        });
+
+        const overallScore = validScores > 0 ? Math.round(totalScore / validScores) : 0;
 
         analysis.status = 'completed';
         analysis.detailedResults = results;
@@ -99,44 +143,36 @@ export async function performFullAnalysis(
         analysis.issueCount = checkValues.reduce((count: number, r: any) => count + (r.issues?.length || 0), 0);
         analysis.analysisDate = new Date();
         await analysis.save();
-
         return analysis;
     } catch (error: any) {
-        if (error.message?.includes('429') || error.message?.includes('quota') || error.message?.includes('400')) {
-            console.warn("[Analysis] AI Throttled. Switching to Heuristic Analysis...");
-            const results = runHeuristicAnalysis(cvJson);
-            analysis.status = 'completed'; // Mark as completed (heuristic)
-            analysis.detailedResults = results;
-            analysis.overallScore = 70; // Baseline heuristic score
-            analysis.issueCount = 2;
-            analysis.analysisDate = new Date();
-            analysis.errorInfo = "Heuristic fallback active (API Rate Limit)";
-            await analysis.save();
-            return analysis;
-        }
-        
-        analysis.status = 'failed';
-        analysis.errorInfo = error.message;
+        console.warn("[Analysis] AI Throttled/Failed. Running Dynamic Heuristics...");
+        const h = runHeuristicAnalysis(cvJson);
+        analysis.status = 'completed';
+        analysis.detailedResults = h.results;
+        analysis.overallScore = h.overallScore;
+        analysis.issueCount = h.issueCount;
+        analysis.analysisDate = new Date();
+        analysis.errorInfo = "Heuristic mode active";
         await analysis.save();
-        throw error;
+        return analysis;
     }
 }
 
 export async function getSectionAnalysis(cvJson: JsonResumeSchema): Promise<Record<string, any>> {
     try {
-        const prompt = `Analyze CV sections: work, education, skills. Return JSON with improvement feedback. \n\nCV Data: ${JSON.stringify(cvJson)}`;
+        const prompt = `Analyze CV sections. Return JSON with improvement feedback. \n\nCV Data: ${JSON.stringify(cvJson)}`;
         return await generateStructuredResponse<any>(prompt);
     } catch (error) {
-        return { work: [], education: [], skills: [] }; // Silent fallback
+        return { work: [], education: [], skills: [] };
     }
 }
 
 export async function generateRewrite(sectionType: string, currentContent: string, feedback: string): Promise<string> {
     try {
-        const prompt = `Improve CV ${sectionType} section. Current: ${currentContent}. Feedback: ${feedback}. Return JSON: { "improvedContent": "..." }`;
+        const prompt = `Improve CV ${sectionType}. Current: ${currentContent}. Feedback: ${feedback}. Return JSON: { "improvedContent": "..." }`;
         const response = await generateStructuredResponse<{ improvedContent: string }>(prompt);
         return response.improvedContent;
     } catch (error) {
-        return currentContent; // Return original on failure
+        return currentContent;
     }
 }
