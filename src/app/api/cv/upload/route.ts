@@ -13,7 +13,10 @@ export async function POST(req: NextRequest) {
 
         const formData = await req.formData();
         const file = formData.get('cvFile') as File;
-        const userId = formData.get('userId') as string || '000000000000000000000001';
+        const userId = formData.get('userId') as string;
+        if (!userId) {
+            return NextResponse.json({ error: 'Authentication required' }, { status: 401 });
+        }
 
         if (!file) {
             return NextResponse.json({ error: 'No file uploaded' }, { status: 400 });

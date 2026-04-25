@@ -38,12 +38,21 @@ export function UserProvider({ children }: { children: React.ReactNode }) {
     if (storedUser) {
       try {
         const parsed = JSON.parse(storedUser);
-        // Self-heal: Ensure ID is always present even if old storage is missing it
-        if (!parsed.id) parsed.id = DEFAULT_USER.id;
+        // Self-heal: Ensure ID is always present
+        if (!parsed.id) {
+          parsed.id = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+          localStorage.setItem("jobify_user", JSON.stringify(parsed));
+        }
         setUser(parsed)
       } catch (e) {
         console.error("Failed to parse stored user", e)
       }
+    } else {
+      // Create a fresh anonymous user with a unique ID
+      const newId = crypto.randomUUID().replace(/-/g, '').substring(0, 24);
+      const newUser = { ...DEFAULT_USER, id: newId };
+      setUser(newUser);
+      localStorage.setItem("jobify_user", JSON.stringify(newUser));
     }
     setIsLoading(false)
   }, [])

@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { connectDB } from "@/lib/mongodb";
 import { Job } from "@/models/Job";
+import { Types } from "mongoose";
 
 export const dynamic = "force-dynamic";
 

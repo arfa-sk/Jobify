@@ -6,7 +6,8 @@ export async function GET(req: NextRequest) {
     try {
         await connectToDatabase();
         const { searchParams } = new URL(req.url);
-        const userId = searchParams.get('userId') || '000000000000000000000001';
+        const userId = searchParams.get('userId');
+        if (!userId) return NextResponse.json({ branches: [] });
 
         const branches = await getBranches(userId);
         return NextResponse.json({ branches });
@@ -44,6 +45,24 @@ export async function PATCH(req: NextRequest) {
         }
 
         return NextResponse.json({ error: 'Invalid action' }, { status: 400 });
+    } catch (error: any) {
+        return NextResponse.json({ error: error.message }, { status: 500 });
+    }
+}
+export async function DELETE(req: NextRequest) {
+    try {
+        await connectToDatabase();
+        const { searchParams } = new URL(req.url);
+        const cvId = searchParams.get('cvId');
+        const userId = searchParams.get('userId');
+
+        if (!cvId || !userId) {
+            return NextResponse.json({ error: 'Missing cvId or userId' }, { status: 400 });
+        }
+
+        const { deleteBranch } = await import('@/server/services/cv-branch-service');
+        await deleteBranch(userId, cvId);
+        return NextResponse.json({ message: 'Branch deleted successfully' });
     } catch (error: any) {
         return NextResponse.json({ error: error.message }, { status: 500 });
     }

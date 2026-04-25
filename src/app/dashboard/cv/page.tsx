@@ -55,8 +55,9 @@ function CVDashboardContent() {
     }, [targetJobId, branches]);
 
     const fetchBranches = async () => {
+        if (!user.id) return;
         try {
-            const res = await fetch(`/api/cv/branches?userId=${user.id || '000000000000000000000001'}`);
+            const res = await fetch(`/api/cv/branches?userId=${user.id}`);
             const data = await res.json();
             if (data.branches) setBranches(data.branches);
         } catch (err) {
@@ -136,10 +137,15 @@ function CVDashboardContent() {
     const deleteBranch = async (cvId: string) => {
         if (!confirm("Are you sure you want to delete this AI branch?")) return;
         try {
-            await fetch(`/api/cv/branches?cvId=${cvId}`, { method: 'DELETE' });
+            const res = await fetch(`/api/cv/branches?cvId=${cvId}&userId=${user.id}`, { method: 'DELETE' });
+            if (!res.ok) {
+                const data = await res.json();
+                throw new Error(data.error || 'Failed to delete branch');
+            }
             fetchBranches();
-        } catch (err) {
+        } catch (err: any) {
             console.error('Delete failed', err);
+            alert(`Delete failed: ${err.message}`);
         }
     };
 
@@ -235,7 +241,7 @@ function CVDashboardContent() {
                             <label className="h-14 px-8 bg-amber-500 hover:bg-amber-400 text-black rounded-2xl flex items-center gap-3 cursor-pointer shadow-[0_0_30px_rgba(245,158,11,0.2)] transition-all active:scale-95">
                                 <Upload size={18} />
                                 <span className="text-[10px] font-semibold uppercase tracking-normal">{uploading ? 'Analyzing...' : 'Upload Master CV'}</span>
-                                <input type="file" className="hidden" onChange={handleUpload} accept=".pdf,.docx" disabled={uploading} />
+                                <input id="master-upload" type="file" className="hidden" onChange={handleUpload} accept=".pdf,.docx" disabled={uploading} />
                             </label>
                         </header>
 
@@ -243,6 +249,19 @@ function CVDashboardContent() {
                             <div className="flex flex-col items-center justify-center py-32 gap-6">
                                 <div className="w-16 h-16 border-4 border-amber-500/10 border-t-amber-500 rounded-full animate-spin shadow-[0_0_30px_rgba(245,158,11,0.1)]" />
                                 <span className="text-[10px] font-semibold text-amber-500 uppercase tracking-normal animate-pulse">Synchronizing Neural Library...</span>
+                            </div>
+                        ) : branches.length === 0 ? (
+                            <div className="mt-12 py-32 border-2 border-dashed border-white/5 rounded-[40px] flex flex-col items-center justify-center text-center space-y-6 animate-in fade-in duration-1000">
+                                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-white/20">
+                                    <FileText size={32} />
+                                </div>
+                                <div className="space-y-1">
+                                    <h3 className="text-xl font-bold uppercase tracking-tight text-white/40">No Private Branches Found</h3>
+                                    <p className="text-[10px] font-bold text-white/20 uppercase tracking-widest">Upload your master CV to begin architecting your career.</p>
+                                </div>
+                                <Button onClick={() => document.getElementById('master-upload')?.click()} className="h-12 px-8 bg-amber-500 text-black font-bold uppercase rounded-xl hover:bg-amber-400 transition-all shadow-[0_0_30px_rgba(245,158,11,0.2)]">
+                                    <Upload size={16} className="mr-2" /> Start New Library
+                                </Button>
                             </div>
                         ) : (
                             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mt-12">
