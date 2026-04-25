@@ -122,61 +122,47 @@ export default function JobDiscoveryArtboard() {
       )}
 
       {/* SIDEBAR */}
-      <aside className={cn("w-72 h-full bg-[#05050a] border-r border-white/10 relative z-30 flex flex-col")}>
-          <div className="p-8 flex flex-col h-full">
-            <Link href="/dashboard" className="flex items-center gap-3 mb-12 hover:opacity-80 transition-opacity">
-                <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(245,158,11,0.3)]">
-                  <Zap className="text-black h-6 w-6" />
-                </div>
-                <div>
-                  <h1 className="text-xl font-black text-white tracking-tighter leading-none">Jobify Pro</h1>
-                  <p className="text-amber-500/80 text-[9px] uppercase tracking-widest font-bold mt-1">Recruitment</p>
-                </div>
-            </Link>
-
-            <nav className="space-y-6 flex-1">
-               <div className="space-y-1">
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-4 px-3">Primary Action</p>
-                  <Button onClick={runDiscovery} disabled={isScraping} className={cn("w-full h-14 rounded-2xl font-black uppercase tracking-widest text-[10px] transition-all gap-3", isScraping ? "bg-white/5 text-white/20" : "bg-amber-500 hover:bg-amber-400 text-black shadow-[0_0_20px_rgba(245,158,11,0.2)]")}>
-                    {isScraping ? <Loader2 size={16} className="animate-spin" /> : <Zap size={16} fill="currentColor" />}
-                    {isScraping ? "Discovering..." : "Scan Market"}
-                  </Button>
-               </div>
-
-               <div className="space-y-1">
-                  <p className="text-[10px] font-black text-white/20 uppercase tracking-[0.2em] mb-4 px-3">Navigation</p>
-                  <Link href="/dashboard">
-                    <Button variant="ghost" className="w-full justify-start h-12 rounded-xl text-white/40 hover:text-white hover:bg-white/5 gap-3 px-3">
-                        <LayoutDashboard size={16} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Dashboard</span>
-                    </Button>
-                  </Link>
-                  <Button variant="ghost" className="w-full justify-start h-12 rounded-xl bg-amber-500/10 text-amber-500 border border-amber-500/20 gap-3 px-3">
-                      <Briefcase size={16} />
-                      <span className="text-xs font-bold uppercase tracking-wider">Opportunity Artboard</span>
-                  </Button>
-                  <Link href="/dashboard/cv">
-                    <Button variant="ghost" className="w-full justify-start h-12 rounded-xl text-white/40 hover:text-white hover:bg-white/5 gap-3 px-3">
-                        <FileText size={16} />
-                        <span className="text-xs font-bold uppercase tracking-wider">CV Management</span>
-                    </Button>
-                  </Link>
-                  <Link href="/dashboard/applications">
-                    <Button variant="ghost" className="w-full justify-start h-12 rounded-xl text-white/40 hover:text-white hover:bg-white/5 gap-3 px-3">
-                        <Target size={16} />
-                        <span className="text-xs font-bold uppercase tracking-wider">Application Tracker</span>
-                    </Button>
-                  </Link>
-               </div>
-            </nav>
+      <aside className={cn("h-full bg-[#05050a] border-r border-white/10 transition-all duration-500 flex flex-col relative z-30 w-72")}>
+        <div className="p-8 flex-1 flex flex-col overflow-hidden">
+          <div className="mb-12 flex items-center gap-3">
+            <div className="w-10 h-10 bg-amber-500 rounded-xl flex items-center justify-center border border-white/20 shadow-[0_0_15px_rgba(245,158,11,0.3)] cursor-pointer" onClick={() => router.push('/dashboard')}>
+              <Zap className="text-black h-6 w-6" />
+            </div>
+            <div>
+              <h1 className="text-xl font-semibold tracking-tight leading-none">Jobify Pro</h1>
+              <p className="text-amber-500/80 text-[9px] uppercase tracking-normal font-bold mt-1">Intelligence</p>
+            </div>
           </div>
+
+          <nav className="space-y-2 flex-1">
+            {[
+              { icon: LayoutDashboard, label: "Overview", href: "/dashboard" },
+              { icon: FileText, label: "CV Management", href: "/dashboard/cv" },
+              { icon: Briefcase, label: "Job Listing", href: "/pipeline" },
+              { icon: Target, label: "Track Applications", href: "/dashboard/applications" },
+            ].map((item, index) => (
+              <Button
+                key={index}
+                variant="ghost"
+                onClick={() => router.push(item.href)}
+                className={cn(
+                  "w-full h-12 rounded-xl group transition-all justify-start px-4",
+                  item.href === "/pipeline" ? "bg-amber-500/10 text-amber-500 border border-amber-500/20" : "text-white/40 hover:bg-white/5 hover:text-white"
+                )}
+              >
+                <item.icon size={18} className={cn("shrink-0", item.href === "/pipeline" ? "text-amber-500" : "group-hover:text-amber-500")} />
+                <span className="ml-4 text-xs font-bold uppercase tracking-wider">{item.label}</span>
+              </Button>
+            ))}
+          </nav>
+        </div>
       </aside>
 
       {/* Main Content */}
       <main className="flex-1 h-full overflow-hidden flex flex-col relative z-10">
         <header className="h-20 backdrop-blur-xl bg-black/40 border-b border-white/10 px-12 flex items-center justify-between">
            <div className="flex items-center gap-4">
-              <h2 className="text-xl font-black text-white uppercase tracking-tighter italic">Discovery Console</h2>
+              <h2 className="text-xl font-semibold text-white uppercase tracking-tight ">Discovery Console</h2>
               <div className="h-6 w-[1px] bg-white/10" />
               <div className="relative">
                  <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-white/20 h-4 w-4" />
@@ -187,7 +173,7 @@ export default function JobDiscoveryArtboard() {
            <div className="flex items-center gap-6">
               <div className="text-right">
                 <p className="text-xs font-bold text-white uppercase">{user.firstName} {user.lastName}</p>
-                <p className="text-[9px] text-amber-500/60 font-black tracking-widest uppercase italic">{user.role || 'Career Pilot'}</p>
+                <p className="text-[9px] text-amber-500/60 font-semibold tracking-normal uppercase ">{user.role || 'Career Pilot'}</p>
               </div>
               <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-500 text-xs shadow-[0_0_15px_rgba(245,158,11,0.2)]">
                 {user.firstName[0]}{user.lastName[0]}
@@ -199,7 +185,7 @@ export default function JobDiscoveryArtboard() {
            <div className="max-w-6xl mx-auto space-y-12">
               {showConsole && (
                 <Card className="bg-black/90 border-amber-500/20 backdrop-blur-3xl rounded-[32px] overflow-hidden animate-in slide-in-from-top-4 duration-500">
-                   <div className="px-6 py-3 border-b border-white/10 flex items-center justify-between bg-white/5 text-[10px] font-black uppercase tracking-widest text-white/60">
+                   <div className="px-6 py-3 border-b border-white/10 flex items-center justify-between bg-white/5 text-[10px] font-semibold uppercase tracking-normal text-white/60">
                       <div className="flex items-center gap-2"><Terminal size={14} className="text-amber-500" /> Autonomous Stream</div>
                       <button onClick={() => setShowConsole(false)}><X size={16} /></button>
                    </div>
@@ -215,25 +201,25 @@ export default function JobDiscoveryArtboard() {
                        <Card key={idx} className="bg-white/5 border-white/10 rounded-[40px] p-10 hover:bg-white/[0.08] transition-all group relative overflow-hidden flex flex-col h-full hover:border-amber-500/40">
                           <div className="flex justify-between items-start mb-8">
                              <div className="flex items-center gap-4">
-                                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center font-black text-xl text-white group-hover:border-amber-500/30 border border-white/10 transition-all">{job.company?.[0]}</div>
+                                <div className="w-14 h-14 bg-white/10 rounded-2xl flex items-center justify-center font-semibold text-xl text-white group-hover:border-amber-500/30 border border-white/10 transition-all">{job.company?.[0]}</div>
                                 <div>
-                                   <div className="flex items-center gap-3"><h3 className="text-xl font-bold text-white group-hover:text-amber-500 transition-colors tracking-tight">{job.company}</h3><Badge className="bg-white/10 text-white/40 border-white/10 text-[8px] font-black uppercase">{job.source}</Badge></div>
-                                   <div className="flex items-center gap-3 text-[10px] font-black text-white/30 uppercase tracking-widest mt-1"><MapPin size={12} className="text-amber-500" /> {job.location}</div>
+                                   <div className="flex items-center gap-3"><h3 className="text-xl font-bold text-white group-hover:text-amber-500 transition-colors tracking-tight">{job.company}</h3><Badge className="bg-white/10 text-white/40 border-white/10 text-[8px] font-semibold uppercase">{job.source}</Badge></div>
+                                   <div className="flex items-center gap-3 text-[10px] font-semibold text-white/30 uppercase tracking-normal mt-1"><MapPin size={12} className="text-amber-500" /> {job.location}</div>
                                 </div>
                              </div>
-                             <div className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-center"><p className="text-[8px] font-black text-amber-500 uppercase tracking-widest mb-0.5">FIT SCORE</p><p className="text-lg font-black text-white">{job.relevanceScore || '??'}%</p></div>
+                             <div className="bg-amber-500/10 border border-amber-500/20 px-4 py-2 rounded-xl text-center"><p className="text-[8px] font-semibold text-amber-500 uppercase tracking-normal mb-0.5">FIT SCORE</p><p className="text-lg font-semibold text-white">{job.relevanceScore || '??'}%</p></div>
                           </div>
                           
                           <div className="space-y-4 mb-8 flex-1">
-                             <h4 className="text-3xl font-black text-white tracking-tighter uppercase italic leading-none">{job.title}</h4>
-                             <p className="text-sm text-white/50 leading-relaxed italic line-clamp-3">{job.aiSummary || "AI Enrichment in progress..."}</p>
+                             <h4 className="text-3xl font-semibold text-white tracking-tight uppercase  leading-none">{job.title}</h4>
+                             <p className="text-sm text-white/50 leading-relaxed  line-clamp-3">{job.aiSummary || "AI Enrichment in progress..."}</p>
                           </div>
 
                           <div className="mt-auto flex gap-3 pt-6 border-t border-white/5">
-                             <Button onClick={() => window.open(job.url, '_blank')} className="flex-1 h-12 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 rounded-2xl font-black uppercase text-[10px] tracking-widest">Details</Button>
-                             <Button onClick={() => handleApplyClick(job)} className="flex-[2] h-12 bg-white text-black hover:bg-amber-500 rounded-2xl font-black uppercase text-[10px] tracking-widest transition-all shadow-xl flex items-center justify-center gap-2">
+                             <Button onClick={() => window.open(job.url, '_blank')} className="flex-1 h-12 bg-white/5 hover:bg-white/10 text-white/60 border border-white/10 rounded-2xl font-semibold uppercase text-[10px] tracking-normal">Details</Button>
+                             <Button onClick={() => handleApplyClick(job)} className="flex-[2] h-12 bg-white text-black hover:bg-amber-500 rounded-2xl font-semibold uppercase text-[10px] tracking-normal transition-all shadow-xl flex items-center justify-center gap-2">
                                 <Sparkles size={16} />
-                                One-Click Apply
+                                Apply
                              </Button>
                           </div>
                           <div className="absolute top-0 right-0 w-32 h-32 bg-amber-500/5 blur-[60px] opacity-0 group-hover:opacity-100 transition-opacity" />
