@@ -50,8 +50,16 @@ export async function parseUploadedCv(
     console.log(`[Parser] Performing Extraction for user ${userId}...`);
 
     try {
-        // Attempt AI Extraction first
-        const result = await generateContentWithFile(CV_EXTRACTION_PROMPT, filePath, mimeType);
+        // 8-Second Timeout Race for Vercel stability
+        const timeoutPromise = new Promise((_, reject) => 
+            setTimeout(() => reject(new Error("PARSE_TIMEOUT")), 8000)
+        );
+
+        const result = await Promise.race([
+            generateContentWithFile(CV_EXTRACTION_PROMPT, filePath, mimeType),
+            timeoutPromise
+        ]) as any;
+
         let text = result.text;
         text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
 
