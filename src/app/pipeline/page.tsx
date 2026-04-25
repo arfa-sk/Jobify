@@ -98,6 +98,7 @@ export default function JobDiscoveryArtboard() {
         id: job._id,
         title: job.title,
         company: job.company,
+        description: job.description || job.aiSummary || job.title,
         email: job.email || 'careers@' + job.company.toLowerCase().replace(/\s+/g, '') + '.com' // Fallback for demo
     })
     setIsApplyModalOpen(true)
@@ -116,6 +117,7 @@ export default function JobDiscoveryArtboard() {
             job={selectedJobForApply}
             cvs={cvs}
             userId={user.id || '000000000000000000000001'}
+            onRefreshCvs={fetchData}
         />
       )}
 

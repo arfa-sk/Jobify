@@ -51,12 +51,18 @@ const CVSchema = new Schema<ICV>(
         targetRole: { type: String, default: null },
         parentCvId: { type: Schema.Types.ObjectId, default: null, index: true },
         isPublic: { type: Boolean, default: false, index: true },
-        shareSlug: { type: String, default: null, unique: true, sparse: true },
+        shareSlug: { type: String, index: true },
         version: { type: Number, default: 0, min: 0 },
         lastEditedAt: { type: Date, default: null },
         originalPdf: { type: Buffer, default: null, select: false },
     },
     { timestamps: true }
+);
+
+// Unique shareSlug only if it exists
+CVSchema.index(
+    { shareSlug: 1 },
+    { unique: true, sparse: true, partialFilterExpression: { shareSlug: { $type: "string" } }, name: 'unique_shareslug' }
 );
 
 CVSchema.index(
