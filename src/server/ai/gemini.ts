@@ -19,7 +19,7 @@ export interface GenerateContentResult {
  * Direct fetch call to Gemini v1 API (Bypassing SDK for maximum reliability)
  */
 async function callGeminiDirect(modelId: string, payload: any): Promise<string> {
-    const url = `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
+    const url = `https://generativelanguage.googleapis.com/v1beta/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
     try {
         const response = await axios.post(url, payload, {
             headers: { 'Content-Type': 'application/json' }
@@ -98,6 +98,9 @@ export async function generateStructuredResponse<T>(
 /**
  * Generate text content using Gemini with automatic dynamic fallback
  */
+/**
+ * Generate text content using Gemini with automatic dynamic fallback (Using SDK for stability)
+ */
 export async function generateContent(
     prompt: string,
     modelName?: string
@@ -107,13 +110,17 @@ export async function generateContent(
 
     for (const modelId of modelsToTry) {
         try {
-            const payload = {
-                contents: [{ parts: [{ text: prompt }] }],
-                generationConfig: { temperature: 0.7, topP: 0.9, topK: 40 }
-            };
-            const text = await callGeminiDirect(modelId, payload);
+            console.log(`[Gemini] Attempting SDK generation with: ${modelId}`);
+            const model = genAI.getGenerativeModel({ model: modelId });
+            const result = await model.generateContent(prompt);
+            const text = result.response.text();
+            
+            if (!text) throw new Error("Empty response from SDK");
+            
+            console.log(`[Gemini] SDK Success with: ${modelId}`);
             return { text };
         } catch (error: any) {
+            console.warn(`[Gemini] SDK Model ${modelId} failed:`, error.message);
             lastError = error;
             continue;
         }
@@ -137,7 +144,7 @@ export async function generateContentWithFile(
     
     for (const modelId of modelsToTry) {
         try {
-            console.log(`[Gemini] Direct v1 attempt with model: ${modelId}`);
+            console.log(`[Gemini] Attempting high-fidelity analysis with: ${modelId}`);
             const payload = {
                 contents: [{
                     parts: [
