@@ -1,5 +1,6 @@
 import { GoogleGenerativeAI, Part } from '@google/generative-ai';
 import * as fs from 'fs';
+import axios from 'axios';
 import { resolveBestModel, resolveModelQueue } from './model-resolver';
 
 export const GEMINI_API_KEY = process.env.GEMINI_API_KEY || '';
@@ -15,22 +16,39 @@ export interface GenerateContentResult {
 }
 
 /**
- * Helper to wait for a specific duration (ms)
+ * Direct fetch call to Gemini v1 API (Bypassing SDK for maximum reliability)
  */
-const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+async function callGeminiDirect(modelId: string, payload: any): Promise<string> {
+    const url = `https://generativelanguage.googleapis.com/v1/models/${modelId}:generateContent?key=${GEMINI_API_KEY}`;
+    try {
+        const response = await axios.post(url, payload, {
+            headers: { 'Content-Type': 'application/json' }
+        });
+        
+        const candidate = response.data.candidates?.[0];
+        if (!candidate) throw new Error("No candidates returned from Gemini");
+        
+        return candidate.content.parts[0].text;
+    } catch (err: any) {
+        const status = err.response?.status;
+        const msg = err.response?.data?.error?.message || err.message;
+        throw new Error(`[Gemini API ${status || 'Error'}] ${msg}`);
+    }
+}
 
 /**
- * Standard analyze text (Gemini Only)
+ * Standard analyze text
  */
 export const analyzeText = async (prompt: string, text: string): Promise<string> => {
   try {
-    const resolvedModel = await resolveBestModel('fast');
-    const model = genAI.getGenerativeModel({ 
-        model: resolvedModel,
+    const modelId = await resolveBestModel('fast');
+    const payload = {
+        contents: [{
+            parts: [{ text: prompt + "\n\n" + text }]
+        }],
         generationConfig: { temperature: 0, topP: 0.1, topK: 1 }
-    });
-    const result = await model.generateContent([prompt, text]);
-    return result.response.text();
+    };
+    return await callGeminiDirect(modelId, payload);
   } catch (err: any) {
     console.error("[Gemini] Error:", err.message);
     return "";
@@ -38,55 +56,47 @@ export const analyzeText = async (prompt: string, text: string): Promise<string>
 };
 
 /**
- * Generate structured JSON response using Gemini with enhanced parsing and smart retry
+ * Generate structured JSON response with direct API calls
  */
 export async function generateStructuredResponse<T>(
     prompt: string,
-    modelName?: string,
-    retryCount = 0
+    modelName?: string
 ): Promise<T> {
-    const resolvedModel = modelName || await resolveBestModel('quality');
-    const model = genAI.getGenerativeModel({ 
-        model: resolvedModel,
-        generationConfig: { 
-            responseMimeType: 'application/json',
-            temperature: 0,
-            topP: 0.1,
-            topK: 1
-        }
-    });
+    const modelsToTry = modelName ? [modelName] : await resolveModelQueue('quality');
+    let lastError: any;
 
-    try {
-        const result = await model.generateContent(prompt);
-        const text = result.response.text();
-        const cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
-        return JSON.parse(cleanedText) as T;
-    } catch (err: any) {
-        // Handle Rate Limits (429) with exponential backoff
-        if (err.message?.includes('429') && retryCount < 2) {
-            const waitTime = (retryCount + 1) * 2000;
-            console.warn(`[Gemini] Rate limit hit. Retrying in ${waitTime}ms...`);
-            await sleep(waitTime);
-            return generateStructuredResponse<T>(prompt, modelName, retryCount + 1);
-        }
-
-        console.warn("[Gemini] Direct parse failed, attempting regex extract");
+    for (const modelId of modelsToTry) {
         try {
-            const text = (err as any).response?.text() || "";
-            const firstBrace = text.indexOf('{');
-            const lastBrace = text.lastIndexOf('}');
-            if (firstBrace !== -1 && lastBrace !== -1 && lastBrace > firstBrace) {
-                const extracted = text.substring(firstBrace, lastBrace + 1);
-                return JSON.parse(extracted) as T;
-            }
-        } catch (inner) {}
-        
-        throw err;
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                generationConfig: { 
+                    responseMimeType: 'application/json',
+                    temperature: 0,
+                    topP: 0.1,
+                    topK: 1
+                }
+            };
+            const text = await callGeminiDirect(modelId, payload);
+            const cleanedText = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+            return JSON.parse(cleanedText) as T;
+        } catch (err: any) {
+            lastError = err;
+            try {
+                const text = err.message || "";
+                const firstBrace = text.indexOf('{');
+                const lastBrace = text.lastIndexOf('}');
+                if (firstBrace !== -1 && lastBrace !== -1) {
+                    return JSON.parse(text.substring(firstBrace, lastBrace + 1)) as T;
+                }
+            } catch (inner) {}
+            continue;
+        }
     }
+    throw lastError || new Error('All Gemini models failed for structured response.');
 }
 
 /**
- * Generate text content using Gemini with automatic dynamic fallback queue
+ * Generate text content using Gemini with automatic dynamic fallback
  */
 export async function generateContent(
     prompt: string,
@@ -97,42 +107,22 @@ export async function generateContent(
 
     for (const modelId of modelsToTry) {
         try {
-            console.log(`[Gemini] Attempting with model: ${modelId}`);
-            const model = genAI.getGenerativeModel({ 
-                model: modelId,
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
                 generationConfig: { temperature: 0.7, topP: 0.9, topK: 40 }
-            });
-
-            const result = await model.generateContent(prompt);
-            const response = result.response;
-            const text = response.text();
-
-            if (!text) throw new Error('Empty response from AI');
-
-            return {
-                text,
-                usage: response.usageMetadata ? {
-                    promptTokens: response.usageMetadata.promptTokenCount,
-                    completionTokens: response.usageMetadata.candidatesTokenCount,
-                    totalTokens: response.usageMetadata.totalTokenCount,
-                } : undefined
             };
+            const text = await callGeminiDirect(modelId, payload);
+            return { text };
         } catch (error: any) {
             lastError = error;
-            if (error.message?.includes('429')) {
-                console.warn(`[Gemini] ${modelId} rate limited. Waiting 3s...`);
-                await sleep(3000); // Wait 3 seconds on rate limit before trying next model or retrying
-            }
-            console.warn(`[Gemini] ${modelId} failed, cycling...`);
             continue;
         }
     }
-
     throw lastError || new Error('All Gemini models failed.');
 }
 
 /**
- * Support for file analysis
+ * Optimized file analysis using direct API calls (Force v1)
  */
 export async function generateContentWithFile(
     prompt: string,
@@ -143,22 +133,30 @@ export async function generateContentWithFile(
     const modelsToTry = modelName ? [modelName] : await resolveModelQueue('fast');
     let lastError: any;
 
-    const filePart = {
-        inlineData: {
-            data: Buffer.from(fs.readFileSync(filePath)).toString('base64'),
-            mimeType,
-        },
-    };
-
+    const base64Data = Buffer.from(fs.readFileSync(filePath)).toString('base64');
+    
     for (const modelId of modelsToTry) {
         try {
-            console.log(`[Gemini] Attempting with model: ${modelId}`);
-            const model = genAI.getGenerativeModel({ model: modelId });
-            const result = await model.generateContent([prompt, filePart]);
-            return { text: result.response.text() };
+            console.log(`[Gemini] Direct v1 attempt with model: ${modelId}`);
+            const payload = {
+                contents: [{
+                    parts: [
+                        { text: prompt },
+                        { inlineData: { mimeType, data: base64Data } }
+                    ]
+                }],
+                generationConfig: {
+                    temperature: 0,
+                    topP: 0.1,
+                    topK: 1
+                }
+            };
+            
+            const text = await callGeminiDirect(modelId, payload);
+            return { text };
         } catch (error: any) {
             lastError = error;
-            console.warn(`[Gemini] File analysis failed with ${modelId}, cycling...`);
+            console.warn(`[Gemini] Direct ${modelId} failed:`, error.message);
             continue;
         }
     }
