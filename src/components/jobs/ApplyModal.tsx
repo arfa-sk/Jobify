@@ -1,7 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
-import { Sparkles, Send, X, FileText, CheckCircle2, Loader2 } from 'lucide-react';
+import { Sparkles, Send, X, FileText, CheckCircle2, Loader2, Scissors, Info } from 'lucide-react';
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
@@ -17,18 +17,56 @@ interface ApplyModalProps {
         title: string;
         company: string;
         email: string;
+        description?: string;
     };
-    cvs: any[]; // Changed from cvId to cvs list
+    cvs: any[];
     userId: string;
+    onRefreshCvs?: () => Promise<void>;
 }
 
-export default function ApplyModal({ isOpen, onClose, job, cvs, userId }: ApplyModalProps) {
+export default function ApplyModal({ isOpen, onClose, job, cvs, userId, onRefreshCvs }: ApplyModalProps) {
     const [loading, setLoading] = useState(false);
+    const [tailoringId, setTailoringId] = useState<string | null>(null);
     const [mode, setMode] = useState<'pro' | 'thorough'>('pro');
     const [selectedCvId, setSelectedCvId] = useState<string>(cvs[0]?._id || '');
-    const [result, setResult] = useState<{ gmailUrl: string, body: string } | null>(null);
+    const [result, setResult] = useState<{ gmailUrl: string, body: string, mode?: string } | null>(null);
+    const [tailorResult, setTailorResult] = useState<any | null>(null);
 
     if (!isOpen) return null;
+
+    const handleTailor = async (cvId: string) => {
+        setTailoringId(cvId);
+        setTailorResult(null);
+        try {
+            const res = await fetch('/api/cv/tailor', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    userId, 
+                    cvId, 
+                    jobDescription: job.description || `${job.title} at ${job.company}`,
+                    targetRole: job.title
+                }),
+            });
+            const data = await res.json();
+            if (data.success) {
+                if (onRefreshCvs) await onRefreshCvs();
+                setSelectedCvId(data.branchId);
+                setTailorResult({
+                    mode: data.mode,
+                    changes: data.changes || [],
+                    keywords: data.jdAnalysis?.extractedKeywords || []
+                });
+            } else {
+                throw new Error(data.error || 'Tailoring failed');
+            }
+        } catch (error: any) {
+            console.error('Tailoring failed', error);
+            alert(`Tailoring failed: ${error.message}`);
+        } finally {
+            setTailoringId(null);
+        }
+    };
 
     const handleApply = async () => {
         if (!selectedCvId) {
@@ -59,9 +97,9 @@ export default function ApplyModal({ isOpen, onClose, job, cvs, userId }: ApplyM
 
     return (
         <div className="fixed inset-0 z-[100] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md animate-in fade-in duration-300">
-            <div className="glass-card w-full max-w-xl relative overflow-hidden border-white/10 shadow-[0_0_80px_rgba(245,158,11,0.15)]">
+            <div className="glass-card w-full max-w-xl relative overflow-hidden border-white/10 shadow-[0_0_80px_rgba(245,158,11,0.15)] max-h-[90vh] overflow-y-auto scrollbar-hide">
                 {/* Close Button */}
-                <button onClick={() => { setResult(null); onClose(); }} className="absolute top-4 right-4 p-2 text-slate-500 hover:text-white transition-colors">
+                <button onClick={() => { setResult(null); setTailorResult(null); onClose(); }} className="absolute top-4 right-4 p-2 text-slate-500 hover:text-white transition-colors">
                     <X size={20} />
                 </button>
 
@@ -77,27 +115,68 @@ export default function ApplyModal({ isOpen, onClose, job, cvs, userId }: ApplyM
                             </div>
                         </div>
 
+                        {/* Tailoring Result Proof */}
+                        {tailorResult && (
+                            <div className="p-4 bg-amber-500/5 border border-amber-500/20 rounded-2xl animate-in slide-in-from-top-2 duration-300">
+                                <div className="flex items-center justify-between mb-3">
+                                    <div className="flex items-center gap-2">
+                                        <div className="w-6 h-6 rounded-lg bg-amber-500/20 flex items-center justify-center text-amber-500">
+                                            <CheckCircle2 size={14} />
+                                        </div>
+                                        <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Surgical Tailoring Success</h3>
+                                    </div>
+                                    <span className={cn("text-[8px] px-2 py-0.5 rounded-full font-bold uppercase", tailorResult.mode === 'AI' ? "bg-green-500/20 text-green-500" : "bg-amber-500/20 text-amber-500")}>
+                                        {tailorResult.mode} Engine
+                                    </span>
+                                </div>
+                                <div className="space-y-2">
+                                    {tailorResult.changes.slice(0, 3).map((c: any, i: number) => (
+                                        <div key={i} className="flex gap-2 text-[9px] text-slate-400">
+                                            <span className="text-amber-500 font-bold min-w-[50px]">{c.section}:</span>
+                                            <span className="italic">{c.description}</span>
+                                        </div>
+                                    ))}
+                                </div>
+                            </div>
+                        )}
+
                         <div className="space-y-4">
-                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">1. Select CV Branch</label>
-                            <div className="grid grid-cols-1 gap-2">
+                            <label className="text-[10px] font-black uppercase tracking-[0.2em] text-slate-500">1. Select or Tailor CV</label>
+                            <div className="grid grid-cols-1 gap-2 max-h-48 overflow-y-auto pr-2 scrollbar-hide">
                                 {cvs.map((cv) => (
-                                    <button
+                                    <div 
                                         key={cv._id}
-                                        onClick={() => setSelectedCvId(cv._id)}
                                         className={cn(
-                                            "flex items-center justify-between p-3 rounded-xl border transition-all text-sm",
+                                            "flex items-center justify-between p-3 rounded-xl border transition-all",
                                             selectedCvId === cv._id 
-                                                ? "bg-amber-500/10 border-amber-500/30 text-white" 
-                                                : "bg-white/5 border-white/5 text-slate-400 hover:border-white/10"
+                                                ? "bg-amber-500/10 border-amber-500/30" 
+                                                : "bg-white/5 border-white/5"
                                         )}
                                     >
-                                        <div className="flex items-center gap-3">
+                                        <button
+                                            onClick={() => setSelectedCvId(cv._id)}
+                                            className="flex-1 flex items-center gap-3 text-left"
+                                        >
                                             <FileText size={16} className={selectedCvId === cv._id ? "text-amber-500" : "text-slate-600"} />
-                                            <span className="font-medium">{cv.displayName}</span>
-                                            {cv.isDefault && <span className="text-[8px] bg-amber-500/20 text-amber-500 px-2 py-0.5 rounded-full">Primary</span>}
-                                        </div>
-                                        {selectedCvId === cv._id && <CheckCircle2 size={16} className="text-amber-500" />}
-                                    </button>
+                                            <div className="flex flex-col">
+                                                <span className={cn("text-xs font-bold", selectedCvId === cv._id ? "text-white" : "text-slate-400")}>{cv.displayName}</span>
+                                                {cv.isTailored && <span className="text-[8px] text-green-500 font-black uppercase tracking-widest mt-0.5">Tailored</span>}
+                                            </div>
+                                        </button>
+                                        
+                                        {!cv.isTailored && (
+                                            <button 
+                                                onClick={() => handleTailor(cv._id)}
+                                                disabled={tailoringId !== null}
+                                                className="ml-2 p-2 rounded-lg bg-white/5 hover:bg-amber-500/20 text-amber-500 transition-all border border-transparent hover:border-amber-500/30 disabled:opacity-50 group"
+                                                title="Tailor this CV for this job"
+                                            >
+                                                {tailoringId === cv._id ? <Loader2 size={14} className="animate-spin" /> : <Scissors size={14} className="group-hover:rotate-12 transition-transform" />}
+                                            </button>
+                                        )}
+                                        
+                                        {selectedCvId === cv._id && <CheckCircle2 size={16} className="text-amber-500 ml-2" />}
+                                    </div>
                                 ))}
                             </div>
                         </div>
@@ -199,4 +278,8 @@ export default function ApplyModal({ isOpen, onClose, job, cvs, userId }: ApplyM
             </div>
         </div>
     );
+}
+
+function Badge({ children, className }: { children: React.ReactNode, className?: string }) {
+    return <span className={cn("px-2 py-0.5 rounded-full font-black uppercase", className)}>{children}</span>;
 }

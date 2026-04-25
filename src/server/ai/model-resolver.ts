@@ -47,21 +47,23 @@ export async function resolveModelQueue(preference: 'fast' | 'quality' = 'fast')
     const scored = models.map(name => {
         let score = 0;
         
-        // Prefer newer versions
-        if (name.includes('1.5')) score += 500;
-        if (name.includes('2.0')) score += 600;
+        // STABLE TIER: 1.5-flash is the primary workhorse (highest free tier RPM)
+        if (name === 'gemini-1.5-flash') score += 1000;
+        else if (name.includes('1.5-flash')) score += 900;
+        else if (name.includes('1.5')) score += 800;
+        
+        // EXPERIMENTAL TIER: 2.0 is often restricted (limit: 0) on free tier
+        if (name.includes('2.0')) score += 100; // Demoted significantly
         
         if (preference === 'fast') {
-            if (name.includes('flash')) score += 100;
-            if (name.includes('lite')) score += 50;
+            if (name.includes('flash')) score += 50;
         } else {
-            if (name.includes('pro')) score += 100;
+            if (name.includes('pro')) score += 50;
         }
         
-        // Penalties for specialized or unstable models
-        if (name.includes('preview') || name.includes('exp')) score -= 200;
-        if (name.includes('robotics') || name.includes('vision') || name.includes('audio')) score -= 1000;
-        if (name.includes('tuning')) score -= 1000;
+        // Penalties for unstable or non-text models
+        if (name.includes('preview') || name.includes('exp') || name.includes('lite')) score -= 300;
+        if (name.includes('vision') || name.includes('audio') || name.includes('tuning')) score -= 1000;
         
         return { name, score };
     }).sort((a, b) => b.score - a.score);

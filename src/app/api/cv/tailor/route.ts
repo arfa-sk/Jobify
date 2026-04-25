@@ -12,35 +12,19 @@ export async function POST(req: NextRequest) {
         console.log(`[Tailor Route] Request - CV: ${cvId}, User: ${userId}`);
 
         if (!cvId || !userId || !jobDescription) {
-            console.error("[Tailor Route] Validation Failed:", { cvId, userId, hasJD: !!jobDescription });
             return NextResponse.json({ error: 'Missing required fields' }, { status: 400 });
         }
 
-        // Quick cast check to prevent 500s on bad IDs
-        if (typeof cvId === 'string' && !/^[0-9a-fA-F]{24}$/.test(cvId)) {
-            return NextResponse.json({ error: 'Invalid CV ID format' }, { status: 400 });
-        }
-
         const baseCv = await CV.findOne({ _id: cvId, userId: userId || '000000000000000000000001' });
-        if (!baseCv) {
-            console.error("[Tailor Route] CV not found for query:", { cvId, userId });
-            return NextResponse.json({ error: 'Base CV not found' }, { status: 404 });
-        }
+        if (!baseCv) return NextResponse.json({ error: 'Base CV not found' }, { status: 404 });
 
-        // Sanitize cvJson before tailoring
-        if (baseCv.cvJson) {
-          if (!baseCv.cvJson.basics) baseCv.cvJson.basics = {};
-          if (!baseCv.cvJson.basics.summary && (baseCv.cvJson.summary || baseCv.cvJson.SUMMARY)) {
-            baseCv.cvJson.basics.summary = baseCv.cvJson.summary || baseCv.cvJson.SUMMARY;
-          }
-        }
-
-        const result = await runTailoringPipeline(baseCv.cvJson, jobDescription, targetRole);
+        // Use optimized pipeline
+        const result = await runTailoringPipeline(baseCv.cvJson, jobDescription, { targetRole });
 
         // Create new branch
         const newBranch = await CV.create({
             userId: baseCv.userId,
-            displayName: `${targetRole || result.jdAnalysis.detectedArchetype} Branch`,
+            displayName: `[TAILORED] ${targetRole || result.jdAnalysis.detectedArchetype}`,
             category: targetRole || result.jdAnalysis.detectedArchetype,
             cvJson: result.tailoredCv,
             isDefault: false,
@@ -53,7 +37,8 @@ export async function POST(req: NextRequest) {
             success: true, 
             branchId: newBranch._id,
             jdAnalysis: result.jdAnalysis,
-            changes: result.changes
+            changes: result.changes,
+            mode: result.mode
         });
     } catch (error: any) {
         console.error("[Tailor Route Error]:", error);

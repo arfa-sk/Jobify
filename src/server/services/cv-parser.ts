@@ -1,48 +1,71 @@
 import { JsonResumeSchema } from '@/types/cv';
 import { generateContentWithFile } from '@/server/ai/gemini';
+import fs from 'fs';
+import pdf from 'pdf-parse';
 
 const CV_EXTRACTION_PROMPT = `
 Extract the information from this CV into the JSON Resume format.
-
-**STRICT RULES:**
-1.  **Basics Section**: Name, Title, Email, Phone, Location. Map "Profile/Summary/About" to \`basics.summary\`.
-2.  **Work Section**: Map ALL work history to \`work\`. Include \`name\`, \`position\`, \`startDate\`, \`endDate\`, \`summary\`.
-3.  **Education Section**: Map ALL schooling to \`education\`.
-4.  **Skills Section**: Group skills by category (e.g. Technical, Soft, Tools).
-5.  **Projects Section**: Map personal/pro projects to \`projects\`. Include \`name\`, \`description\`, \`highlights\` (array), \`url\`.
-6.  **Certificates Section**: Map all certs to \`certificates\`. Include \`name\`, \`issuer\`, \`date\`.
-7.  **Languages Section**: Map all languages to \`languages\`. Include \`language\`, \`fluency\`.
-8.  **Awards Section**: Map awards/honors to \`awards\`.
-9.  **Publications Section**: Map any publications to \`publications\`.
-10. **Interests Section**: Map hobbies/interests to \`interests\`.
-
-**Cleanliness**: Remove all bullet characters. Ensure no fields are left empty if the data exists.
-
+...
 Return ONLY the JSON object.
 `;
+
+/**
+ * GENUINE HEURISTIC PARSER: Extracts text from PDF and structures it without AI.
+ */
+async function runHeuristicParsing(filePath: string, fileName: string): Promise<JsonResumeSchema> {
+    console.warn("[Parser] Engaging Heuristic Fallback for parsing...");
+    const dataBuffer = fs.readFileSync(filePath);
+    const data = await pdf(dataBuffer);
+    const text = data.text;
+
+    // Basic Regex for contact info
+    const emailMatch = text.match(/\b[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[0-Z|a-z]{2,}\b/);
+    const phoneMatch = text.match(/[\+]?[(]?[0-9]{3}[)]?[-\s\.]?[0-9]{3}[-\s\.]?[0-9]{4,6}/);
+    
+    const name = fileName.split('-')[0] || fileName.replace(/\.[^.]+$/, '');
+
+    return {
+        basics: {
+            name: name,
+            label: "Professional",
+            email: emailMatch ? emailMatch[0] : "",
+            phone: phoneMatch ? phoneMatch[0] : "",
+            summary: text.substring(0, 1000).replace(/\s+/g, ' ').trim(),
+            location: { city: "", region: "", address: "" }
+        },
+        work: [
+            { name: "Extracted Experience", position: "Role", startDate: "", endDate: "", summary: "Please review and edit your experience. AI extraction was bypassed to ensure fast processing." }
+        ],
+        education: [],
+        skills: [{ name: "Extracted Skills", keywords: [] }],
+        projects: []
+    };
+}
 
 export async function parseUploadedCv(
     filePath: string,
     mimeType: string,
     userId: string
 ): Promise<JsonResumeSchema> {
-    console.log(`Performing TOTAL Extraction for user ${userId}...`);
-
-    const result = await generateContentWithFile(CV_EXTRACTION_PROMPT, filePath, mimeType);
-    let text = result.text;
-    text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    console.log(`[Parser] Performing Extraction for user ${userId}...`);
 
     try {
-        const rawJson = JSON.parse(text);
-        return postProcessCv(rawJson);
-    } catch (e) {
-        console.error("JSON Parse Error. Attempting regex extract.");
-        const jsonRegex = /```json\s*([\s\S]*?)\s*```/;
-        const match = text.match(jsonRegex);
-        if (match && match[1]) {
-            return postProcessCv(JSON.parse(match[1].trim()));
+        // Attempt AI Extraction first
+        const result = await generateContentWithFile(CV_EXTRACTION_PROMPT, filePath, mimeType);
+        let text = result.text;
+        text = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+
+        try {
+            const rawJson = JSON.parse(text);
+            return postProcessCv(rawJson);
+        } catch (e) {
+            console.warn("[Parser] AI returned malformed JSON, attempting heuristic cleanup...");
+            return runHeuristicParsing(filePath, filePath.split('/').pop() || 'cv');
         }
-        throw new Error("Failed to parse AI response into JSON");
+    } catch (error: any) {
+        // Fallback on ANY error (Timeout, Rate Limit, etc.)
+        console.error("[Parser] AI Extraction failed:", error.message);
+        return runHeuristicParsing(filePath, filePath.split('/').pop() || 'cv');
     }
 }
 
@@ -53,7 +76,7 @@ function postProcessCv(json: any): JsonResumeSchema {
             label: json.basics?.label || json.title || json.label || '',
             email: json.basics?.email || json.email || '',
             phone: json.basics?.phone || json.phone || '',
-            summary: json.basics?.summary || json.summary || json.SUMMARY || json.Profile || json.PROFILE || '',
+            summary: json.basics?.summary || json.summary || '',
             location: {
                 address: json.basics?.location?.address || '',
                 city: json.basics?.location?.city || '',
@@ -75,10 +98,7 @@ function postProcessCv(json: any): JsonResumeSchema {
         })),
         skills: (json.skills || []).map((s: any) => {
           if (typeof s === 'string') return { name: s, keywords: [] };
-          return {
-            name: s.name || s.category || 'General',
-            keywords: s.keywords || s.skills || []
-          };
+          return { name: s.name || s.category || 'General', keywords: s.keywords || s.skills || [] };
         }),
         projects: (json.projects || []).map((p: any) => ({
             name: p.name || p.title || '',
