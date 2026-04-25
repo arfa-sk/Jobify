@@ -35,9 +35,10 @@ export async function generateCoverLetter(
 
     try {
         const result = await generateContent(prompt);
+        if (!result.text) throw new Error('AI returned empty response');
         return result.text;
-    } catch (error) {
-        console.error('Error generating cover letter:', error);
-        throw new Error('Failed to generate cover letter via AI');
+    } catch (error: any) {
+        console.error('Error generating cover letter:', error.message);
+        throw new Error(`Failed to generate cover letter via AI: ${error.message}`);
     }
 }

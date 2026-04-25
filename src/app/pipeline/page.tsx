@@ -177,15 +177,27 @@ export default function JobDiscoveryArtboard() {
               </div>
            </div>
            
-           <div className="flex items-center gap-6">
-              <div className="text-right">
-                <p className="text-xs font-bold text-white uppercase">{user.firstName} {user.lastName}</p>
-                <p className="text-[9px] text-amber-500/60 font-semibold tracking-normal uppercase ">{user.role || 'Career Pilot'}</p>
-              </div>
-              <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-500 text-xs shadow-[0_0_15px_rgba(245,158,11,0.2)]">
-                {user.firstName[0]}{user.lastName[0]}
-              </div>
-           </div>
+            <div className="flex items-center gap-6">
+               <Button 
+                onClick={runDiscovery} 
+                disabled={isScraping} 
+                variant="outline" 
+                className="bg-amber-500/10 text-amber-500 border-amber-500/20 hover:bg-amber-500 hover:text-black rounded-xl h-10 gap-2 px-6 group transition-all"
+               >
+                 <Zap className={cn("h-4 w-4", isScraping && "animate-pulse")} />
+                 <span className="text-[10px] font-bold uppercase tracking-wider">{isScraping ? "Processing..." : "Trigger Engine"}</span>
+               </Button>
+               
+               <div className="h-6 w-[1px] bg-white/10" />
+
+               <div className="text-right">
+                 <p className="text-xs font-bold text-white uppercase">{user.firstName} {user.lastName}</p>
+                 <p className="text-[9px] text-amber-500/60 font-semibold tracking-normal uppercase ">{user.role || 'Career Pilot'}</p>
+               </div>
+               <div className="w-10 h-10 rounded-xl bg-amber-500/20 border border-amber-500/30 flex items-center justify-center font-bold text-amber-500 text-xs shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                 {user.firstName[0]}{user.lastName[0]}
+               </div>
+            </div>
         </header>
 
         <div className="flex-1 overflow-y-auto bg-[#0f0f1a] p-12 scrollbar-hide">
@@ -201,7 +213,22 @@ export default function JobDiscoveryArtboard() {
                    </div>
                 </Card>
               )}               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                 {loading ? [1,2,3,4,5,6].map(i => <div key={i} className="h-[350px] bg-white/5 rounded-2xl animate-pulse" />) : (
+                 {loading ? (
+                    [1,2,3,4,5,6].map(i => <div key={i} className="h-[350px] bg-white/5 rounded-2xl animate-pulse" />)
+                 ) : jobs.length === 0 ? (
+                    <div className="col-span-full py-32 text-center space-y-6 animate-in fade-in duration-700">
+                        <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto border border-white/10">
+                            <Briefcase className="text-white/20 h-10 w-10" />
+                        </div>
+                        <div className="space-y-2">
+                            <h3 className="text-2xl font-bold text-white tracking-tight uppercase">Registry Offline</h3>
+                            <p className="text-white/40 text-xs font-medium max-w-sm mx-auto leading-relaxed">The autonomous job engine is ready for deployment. Trigger the discovery sequence to sync fresh listings from global feeds.</p>
+                        </div>
+                        <Button onClick={runDiscovery} disabled={isScraping} className="h-14 px-10 bg-amber-500 text-black font-bold uppercase rounded-2xl hover:scale-105 transition-all shadow-[0_0_20px_rgba(245,158,11,0.3)]">
+                            {isScraping ? "Deploying Engine..." : "Initialize Discovery"}
+                        </Button>
+                    </div>
+                 ) : (
                     jobs.filter(j => j.company.toLowerCase().includes(searchQuery.toLowerCase()) || j.title.toLowerCase().includes(searchQuery.toLowerCase())).map((job, idx) => (
                         <div key={job._id || idx} className="glass-card group hover:border-amber-500/30 transition-all duration-500 relative overflow-hidden bg-white/5 border border-white/10 rounded-2xl p-6">
                             {/* Ambient Background */}
@@ -262,9 +289,9 @@ export default function JobDiscoveryArtboard() {
                     ))
                  )}
               </div>
-           </div>
-        </div>
-      </main>
-    </div>
+            </div>
+          </div>
+        </main>
+      </div>
   )
 }

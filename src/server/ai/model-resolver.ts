@@ -5,14 +5,14 @@ export async function resolveModelQueue(preference: 'fast' | 'quality' = 'fast')
     // Using the exact models discovered in the API diagnostic
     if (preference === 'fast') {
         return [
-            'gemini-1.5-flash',
+            'gemini-flash-latest',
             'gemini-2.5-flash',
             'gemini-2.0-flash'
         ];
     } else {
         return [
-            'gemini-1.5-pro',
-            'gemini-1.5-flash',
+            'gemini-pro-latest',
+            'gemini-flash-latest',
             'gemini-2.5-pro',
             'gemini-2.0-flash'
         ];

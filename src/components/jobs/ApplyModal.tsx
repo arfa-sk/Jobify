@@ -125,9 +125,7 @@ export default function ApplyModal({ isOpen, onClose, job, cvs, userId, onRefres
                                         </div>
                                         <h3 className="text-[10px] font-black text-white uppercase tracking-widest">Surgical Tailoring Success</h3>
                                     </div>
-                                    <span className={cn("text-[8px] px-2 py-0.5 rounded-full font-bold uppercase", tailorResult.mode === 'AI' ? "bg-green-500/20 text-green-500" : "bg-amber-500/20 text-amber-500")}>
-                                        {tailorResult.mode} Engine
-                                    </span>
+
                                 </div>
                                 <div className="space-y-2">
                                     {tailorResult.changes.slice(0, 3).map((c: any, i: number) => (
