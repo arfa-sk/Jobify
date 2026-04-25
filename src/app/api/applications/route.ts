@@ -9,9 +9,11 @@ export async function GET(req: NextRequest) {
   try {
     await connectDB();
     const { searchParams } = new URL(req.url);
-    const userId = searchParams.get("userId") || '000000000000000000000001';
+    const userId = searchParams.get("userId");
+    if (!userId) return NextResponse.json({ success: true, applications: [] });
 
-    const applications = await Application.find({ userId })
+    const uoid = userId ? new Types.ObjectId(userId) : null;
+    const applications = await Application.find({ userId: uoid })
       .sort({ createdAt: -1 })
       .lean();
 
@@ -39,7 +41,7 @@ export async function POST(req: NextRequest) {
     const { userId, jobId, cvId, coverLetter, outreachEmail, status } = body;
 
     const application = await Application.create({
-      userId: userId || '000000000000000000000001',
+      userId,
       jobId,
       cvId,
       coverLetter,

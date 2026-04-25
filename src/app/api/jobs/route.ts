@@ -16,11 +16,12 @@ export async function GET(req: NextRequest) {
     const limit = Math.min(Number(searchParams.get("limit") || 20), 100);
     const skip = Math.max(Number(searchParams.get("skip") || 0), 0);
 
+    const uoid = userId ? new Types.ObjectId(userId) : null;
     const filter: Record<string, unknown> = {};
     
     // If userId provided, only show their targeted jobs
-    if (userId) {
-      filter.userId = userId;
+    if (uoid) {
+      filter.userId = uoid;
     } else {
       // If no userId, only show global discovery jobs
       filter.userId = { $exists: false };
@@ -52,10 +53,10 @@ export async function GET(req: NextRequest) {
     const total = await Job.countDocuments(filter);
 
     // Auto-seed for demo if empty for a specific user
-    if (userId && items.length === 0) {
+    if (uoid && items.length === 0) {
         const sampleJobs = [
             {
-                userId,
+                userId: uoid,
                 title: 'Senior Frontend Engineer',
                 company: 'Vercel',
                 email: 'careers@vercel.com',
@@ -64,7 +65,7 @@ export async function GET(req: NextRequest) {
                 status: 'open'
             },
             {
-                userId,
+                userId: uoid,
                 title: 'Full Stack Developer',
                 company: 'Supabase',
                 email: 'hiring@supabase.io',
@@ -74,7 +75,7 @@ export async function GET(req: NextRequest) {
             }
         ];
         await Job.insertMany(sampleJobs);
-        items = await Job.find({ userId }).lean();
+        items = await Job.find({ userId: uoid }).lean();
     }
 
     return NextResponse.json({
